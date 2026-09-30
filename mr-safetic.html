@@ -1,0 +1,1748 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MR-SafeTic — sécurité IRM, analyse de risque implant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0E1216; --ink-2:#3A434C; --ink-3:#6B757E;
+  --paper:#FBFBFA; --card:#FFFFFF; --line:#DFE2E4; --line-2:#C7CCD0;
+  --r0:#0B6E4F; --r1:#B08900; --r2:#D97316; --r3:#B7410E; --r4:#9E1B1B;
+  --r0bg:#E6F2EC; --r1bg:#FAF2D8; --r2bg:#FCEBDA; --r3bg:#F9E3D9; --r4bg:#F7E0E0;
+  --bore:#EEF1F3; --skin:#D8DDE1;
+  --sans:'IBM Plex Sans',system-ui,sans-serif;
+  --cond:'IBM Plex Sans Condensed','IBM Plex Sans',sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --radius:12px; --radius-s:8px; --radius-xs:5px;
+  --shadow-sm:0 1px 2px rgba(20,24,28,.04),0 2px 6px rgba(20,24,28,.045);
+  --shadow-md:0 2px 4px rgba(20,24,28,.05),0 10px 24px rgba(20,24,28,.07);
+  --ease:cubic-bezier(.2,.7,.3,1);
+}
+@media(prefers-color-scheme:dark){
+:root{--ink:#EDEFF1;--ink-2:#AEB6BD;--ink-3:#7C868E;--paper:#0E1216;--card:#171C21;
+ --line:#2A3138;--line-2:#3A434C;--r0:#4FBF95;--r1:#DFC047;--r2:#EF9A4E;--r3:#E07248;--r4:#E06666;
+ --r0bg:#12261F;--r1bg:#2A2412;--r2bg:#2C1F12;--r3bg:#2C1A12;--r4bg:#2C1414;
+ --bore:#1D242A;--skin:#39424A;
+ --shadow-sm:0 1px 2px rgba(0,0,0,.22),0 2px 8px rgba(0,0,0,.28);
+ --shadow-md:0 2px 6px rgba(0,0,0,.28),0 12px 28px rgba(0,0,0,.36);}
+}
+@media(prefers-reduced-motion:reduce){
+ *{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.shell{max-width:800px;margin:0 auto;padding:0 20px 80px}
+
+header{border-bottom:1px solid var(--line);padding:22px 0 16px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.brand{font-family:var(--cond);font-weight:600;font-size:20px;line-height:1.15}
+.brand span{display:block;font-family:var(--mono);font-weight:400;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin-top:5px}
+.ver{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);letter-spacing:.06em;padding-top:4px;white-space:nowrap}
+
+.fields{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-top:none;background:var(--card);border-radius:0 0 var(--radius) var(--radius);overflow:hidden}
+.fld{padding:11px 10px 12px;border-right:1px solid var(--line);position:relative}
+.fld:last-child{border-right:none}
+.fld-k{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);display:block;margin-bottom:2px}
+.fld-n{font-family:var(--cond);font-size:12.5px;font-weight:600;color:var(--ink-2);line-height:1.25}
+.fld-s{font-family:var(--mono);font-size:19px;font-weight:500;margin-top:7px;color:var(--line-2);font-variant-numeric:tabular-nums;line-height:1}
+.fld-bar{height:3px;background:var(--line);margin-top:8px;overflow:hidden}
+.fld-bar i{display:block;height:100%;width:0;background:var(--line-2);transition:width .3s ease,background .3s ease}
+.fld[data-on="1"]::before{content:"";position:absolute;left:0;top:0;right:0;height:2px;background:var(--ink)}
+
+h2{font-family:var(--cond);font-size:22px;font-weight:600;margin:32px 0 4px;line-height:1.25}
+h2 em{font-family:var(--mono);font-style:normal;font-size:15px;font-weight:400;color:var(--ink-3)}
+.sub{color:var(--ink-3);font-size:13.5px;margin-bottom:20px;max-width:64ch}
+.eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);margin:28px 0 10px}
+
+.q{margin:24px 0 0}
+.q-l{font-size:15.5px;font-weight:500;line-height:1.45;margin-bottom:3px}
+.q-h{font-size:13px;color:var(--ink-3);line-height:1.5;margin-bottom:11px;max-width:66ch}
+.opts{display:flex;flex-direction:column;gap:7px}
+.opts.row{flex-direction:row;flex-wrap:wrap}
+.opt{font-family:inherit;font-size:14.5px;color:var(--ink);background:var(--card);border:1px solid var(--line);
+  border-radius:var(--radius-xs);
+  padding:11px 14px;text-align:left;cursor:pointer;display:flex;align-items:center;gap:11px;line-height:1.4;
+  transition:border-color .15s var(--ease),transform .15s var(--ease),box-shadow .15s var(--ease)}
+.opts.row .opt{flex:1 1 auto;min-width:92px;justify-content:center;text-align:center}
+.opt:hover{border-color:var(--line-2);transform:translateY(-1px);box-shadow:var(--shadow-sm)}
+.opt:active{transform:translateY(0)}
+.opt:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+.opt.on{border-color:var(--ink);box-shadow:inset 3px 0 0 var(--ink)}
+.opts.row .opt.on{box-shadow:inset 0 -3px 0 var(--ink)}
+.opt-t{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-left:auto;flex-shrink:0}
+
+.ctrl{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);margin-top:16px;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-sm)}
+.f{background:var(--card);padding:11px 13px 12px}
+.f label{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px}
+select,input[type=range]{width:100%;font-family:var(--sans);font-size:14px;color:var(--ink);background:var(--paper);border:1px solid var(--line-2);border-radius:var(--radius-xs);padding:7px 8px;transition:border-color .15s var(--ease)}
+select:hover,input:hover{border-color:var(--ink-3)}
+select:focus-visible,input:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+input[type=range]{padding:0;border:none;background:none;accent-color:var(--ink)}
+.hval{font-family:var(--mono);font-size:13px;margin-top:3px}
+.fh{font-size:11.5px;color:var(--ink-3);line-height:1.4;margin-top:5px}
+
+.panel{border:1px solid var(--line);background:var(--card);margin-top:14px;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-sm)}
+.panel-h{display:flex;justify-content:space-between;align-items:baseline;padding:10px 14px;border-bottom:1px solid var(--line);gap:12px}
+.panel-t{font-family:var(--cond);font-size:15px;font-weight:600}
+.panel-s{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);text-align:right}
+svg{display:block;width:100%;height:auto}
+.legend{display:flex;flex-wrap:wrap;gap:14px;padding:10px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-2)}
+.lg{display:flex;align-items:center;gap:6px}
+.sw{width:16px;height:10px;border:1px solid var(--line-2)}
+
+.tabs{display:flex;gap:1px;background:var(--line);border:1px solid var(--line);border-bottom:none;margin-top:22px;border-radius:var(--radius) var(--radius) 0 0;overflow:hidden}
+.tab{flex:1;background:var(--card);border:none;font-family:var(--cond);font-weight:600;font-size:13.5px;color:var(--ink-3);padding:11px 6px;cursor:pointer}
+.tab.on{color:var(--ink);box-shadow:inset 0 -3px 0 var(--ink)}
+
+.read{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);margin-top:14px;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-sm)}
+.rc{background:var(--card);padding:13px 14px}
+.rc-k{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+.rc-n{font-family:var(--cond);font-size:13.5px;font-weight:600;color:var(--ink-2);margin:2px 0 7px}
+.rc-v{font-family:var(--cond);font-size:15px;font-weight:600;line-height:1.2}
+.rc-w{font-size:12px;color:var(--ink-3);margin-top:6px;line-height:1.45}
+
+button.act{font-family:var(--cond);font-weight:600;font-size:15px;background:var(--ink);color:var(--paper);border:none;border-radius:var(--radius-xs);padding:12px 22px;cursor:pointer;transition:transform .15s var(--ease),box-shadow .15s var(--ease),opacity .15s}
+button.act:hover:not([disabled]){transform:translateY(-1px);box-shadow:var(--shadow-md)}
+button.act:active:not([disabled]){transform:translateY(0)}
+button.act[disabled]{opacity:.32;cursor:not-allowed}
+button.gh{background:none;color:var(--ink);border:1px solid var(--line-2);border-radius:var(--radius-xs);font-family:var(--sans);font-weight:500;font-size:14px;padding:10px 18px;cursor:pointer;transition:border-color .15s var(--ease),transform .15s var(--ease),background .15s var(--ease)}
+button.gh:hover{border-color:var(--ink);transform:translateY(-1px)}
+button.gh:active{transform:translateY(0)}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:28px;padding-top:20px;border-top:1px solid var(--line)}
+
+.gate{border:1px solid var(--line);background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:24px;margin-top:28px}
+.gate h3{font-family:var(--cond);font-size:17px;font-weight:600;margin-bottom:12px}
+.gate p{font-size:13.5px;color:var(--ink-2);margin-bottom:12px;line-height:1.62}
+.gate ul{margin:0 0 14px 18px;font-size:13.5px;color:var(--ink-2)}
+.gate li{margin-bottom:7px;line-height:1.55}
+.chk{display:flex;gap:11px;align-items:flex-start;margin-top:18px;padding-top:16px;border-top:1px solid var(--line);cursor:pointer;font-size:14px;line-height:1.5}
+.chk input{margin-top:3px;width:17px;height:17px;flex-shrink:0;accent-color:var(--ink)}
+
+.verdict{border:1px solid;border-radius:var(--radius);box-shadow:var(--shadow-md);padding:20px 22px;margin:8px 0 18px}
+.verdict-k{font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;opacity:.85}
+.verdict-t{font-family:var(--cond);font-size:24px;font-weight:600;margin:5px 0 8px;line-height:1.2}
+.verdict-b{font-size:14px;line-height:1.62;max-width:64ch}
+.scale{display:flex;border:1px solid var(--line);border-radius:var(--radius-xs);overflow:hidden;margin-bottom:20px}
+.scale div{flex:1;padding:7px 6px;font-family:var(--mono);font-size:9.5px;text-align:center;border-right:1px solid var(--line);line-height:1.3}
+.scale div:last-child{border-right:none}
+.mit{border-left:3px solid var(--ink);background:var(--card);border-top:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line);border-radius:0 var(--radius-xs) var(--radius-xs) 0;box-shadow:var(--shadow-sm);padding:14px 16px;margin-bottom:9px}
+.mit-k{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin-bottom:4px}
+.mit-b{font-size:13.5px;line-height:1.55}
+.expert{border:1px solid var(--line);background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:20px 22px;margin-top:22px}
+.expert-h{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.expert-t{font-family:var(--cond);font-size:17px;font-weight:600}
+.expert-s{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-top:3px}
+.expert-b{font-size:13.5px;color:var(--ink-2);line-height:1.6;margin-top:12px;max-width:64ch}
+.expert-w{font-size:12.5px;color:var(--ink-3);line-height:1.55;margin-top:10px;max-width:64ch}
+.expert-w strong{color:var(--ink-2)}
+.dot{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-3);white-space:nowrap}
+.dot i{width:8px;height:8px;border-radius:50%;background:var(--line-2);flex-shrink:0}
+.mono-sel{font-family:var(--mono);font-size:12px;color:var(--ink-2);user-select:all}
+.help{margin-top:12px}
+.syms{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:10px 0 14px}
+.syms figure{margin:0;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius-xs);padding:14px 10px 12px;text-align:center}
+.syms figure>div{color:var(--ink);line-height:0}
+.syms figcaption{margin-top:9px;line-height:1.35}
+.syms figcaption strong{display:block;font-family:var(--cond);font-size:13.5px;font-weight:600;color:var(--ink)}
+.syms figcaption span{display:block;font-size:11.5px;color:var(--ink-3);margin-top:2px}
+.help .dbody p{margin-bottom:9px}
+.cmp{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px}
+.cmpo{font-family:inherit;background:var(--card);border:1px solid var(--line);border-radius:var(--radius-xs);padding:11px 13px;
+  cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:3px;
+  transition:border-color .15s var(--ease),transform .15s var(--ease),box-shadow .15s var(--ease)}
+.cmpo:hover{border-color:var(--line-2);transform:translateY(-1px);box-shadow:var(--shadow-sm)}
+.cmpo:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+.cmpo.on{border-color:var(--ink);box-shadow:inset 3px 0 0 var(--ink)}
+.cmpo-n{font-size:13px;color:var(--ink);line-height:1.35}
+.cmpo-l{font-family:var(--cond);font-weight:600;font-size:13.5px;line-height:1.25}
+.cmpo-d{font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.06em}
+#srcs{margin-top:36px}
+.srct{width:100%;border-collapse:collapse;font-size:12.5px;table-layout:fixed;margin-top:4px}
+.dbody table.srct{font-family:var(--sans);font-size:12.5px}
+.dbody .srct td:first-child{white-space:normal;padding-right:10px}
+.srct td,.srct th{white-space:normal;overflow-wrap:anywhere}
+.srct th{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);
+  text-align:left;font-weight:400;padding:0 10px 7px 0;border-bottom:1px solid var(--line)}
+.srct td{padding:8px 10px 8px 0;border-bottom:1px solid var(--line);color:var(--ink-2);line-height:1.45;vertical-align:top}
+.srct td:nth-child(2){color:var(--ink-3)}
+.srct th:nth-child(1),.srct td:nth-child(1){width:48%}
+.srct th:nth-child(2),.srct td:nth-child(2){width:29%}
+.srct th:nth-child(3),.srct td:nth-child(3){width:23%}
+.st{font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;
+  padding:2px 7px;border:1px solid;border-radius:3px;white-space:nowrap;display:inline-block}
+.refs{margin-top:20px;font-size:12.5px;color:var(--ink-2);line-height:1.6}
+.refs li{margin-bottom:9px;list-style:none;padding-left:16px;text-indent:-16px}
+.refs a{color:var(--ink-3)}
+@media(max-width:560px){.srct{font-size:11.5px}.srct td{padding:7px 6px 7px 0}}
+.trace{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);line-height:1.8;border-top:1px solid var(--line);padding-top:16px;margin-top:24px}
+.trace b{color:var(--ink-2);font-weight:500}
+.note{font-size:12.5px;color:var(--ink-3);line-height:1.6;padding:13px 15px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius-xs);margin-top:14px}
+.note strong{color:var(--ink-2)}
+details{margin-top:12px;border:1px solid var(--line);background:var(--card);border-radius:var(--radius-xs);overflow:hidden}
+summary{padding:11px 14px;cursor:pointer;font-family:var(--cond);font-weight:600;font-size:14px;list-style:none;transition:background .15s var(--ease)}
+summary:hover{background:var(--paper)}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"▸ ";color:var(--ink-3)}
+details[open] summary::before{content:"▾ "}
+.dbody{padding:0 14px 14px;font-size:13px;color:var(--ink-2);line-height:1.6}
+.dbody table{border-collapse:collapse;width:100%;font-family:var(--mono);font-size:11.5px;margin-top:6px}
+.dbody td{border-bottom:1px solid var(--line);padding:4px 8px 4px 0;color:var(--ink-3);vertical-align:top}
+.dbody td:first-child{color:var(--ink-2);white-space:nowrap;padding-right:14px}
+@media(max-width:560px){
+ .fld-n{font-size:11px}.fld-s{font-size:16px}.fld{padding:9px 7px 10px}
+ .brand{font-size:18px}h2{font-size:20px}.tab{font-size:12px}
+}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+#main.enter{animation:fadeInUp .32s var(--ease) both}
+.tab{transition:color .15s var(--ease)}
+</style>
+</head>
+<body>
+<div class="shell">
+<header>
+  <div class="brand"><a href="#" id="home-link" style="color:inherit;text-decoration:none">MR-SafeTic</a>
+    <span>Sécurité IRM — analyse de risque implant · outil pédagogique, ne remplace pas l'avis médical</span></div>
+  <div class="ver">v0.5</div>
+</header>
+<div class="fields" id="fields"></div>
+<main id="main"></main>
+<footer id="srcs"></footer>
+</div>
+
+<script>
+"use strict";
+
+/* ══════════════════════════════════════════════════════════════
+   TABLE D'HYPOTHÈSES — regroupe toutes les valeurs à valider.
+   Les corriger ici ne demande aucune modification ailleurs.
+   ══════════════════════════════════════════════════════════════ */
+const HYP = {
+  boreLen:160, boreDia:70, tableDrop:12,
+
+  rfLen:60,        // antenne corps — mesure directe Ingenia 1.5T
+  /* Deux mécanismes distincts, à ne pas confondre.
+     rfFalloff — ANTENNE CORPS : le B1 ne s'arrête pas net au bord de l'antenne,
+     il décroît. La bande s'applique à tout dispositif, compact ou non.
+     rfReach — ANTENNE LOCALE BLINDÉE : le champ est confiné, il n'y a pas de
+     débordement. Seul le TRAJET d'un conducteur peut franchir la frontière,
+     et l'outil pose alors la question plutôt que de la déduire. */
+  rfFalloff:15,   // SEULE valeur encore non ancrée du modèle RF
+  rfReach:45,
+  /* FOV maximal en z sur l'Ingenia 1,5 T ; en pratique 30 cm (rachis) à 40 cm.
+     Consigné pour mémoire seulement : le FOV ne borne EN RIEN la zone exposée.
+     L'antenne corps émet dans tout son volume quel que soit le FOV prescrit ;
+     la sélectivité de coupe vient du gradient appliqué pendant l'impulsion, pas
+     d'une restriction de l'émission. Un échauffement d'implant ne dépend pas de
+     la résonance des spins mais du champ électrique induit, présent partout
+     dans l'antenne. Le FOV agit sur le SAR, pas sur sa répartition spatiale. */
+  fovZ:50,
+  headCoilLen:31,  // antenne tête 8 canaux émission-réception, Ingenia 1,5 T : boîtier
+                   // mesuré à 31 × 31 cm. Le volume d'émission actif est plus court que
+                   // le boîtier : retenir la valeur mesurée surestime légèrement le
+                   // volume exposé, ce qui va dans le sens prudent.
+  kneeCoilLen:20,  // antenne genou émission-réception — NON VALIDÉ : le parc de référence
+                   // n'en comporte pas (genou réceptrice seule sur l'Ingenia 1,5 T)
+
+  land:{
+    vertex:{n:"Vertex / crâne",f:.045}, orbite:{n:"Orbites",f:.065},
+    cou:{n:"Rachis cervical",f:.115}, epaule:{n:"Épaule",f:.175},
+    pectoral:{n:"Loge pectorale",f:.215}, coeur:{n:"Cœur",f:.245},
+    dorsal:{n:"Rachis dorsal",f:.260}, xiphoide:{n:"Appendice xiphoïde",f:.285},
+    abdomen:{n:"Abdomen / ombilic",f:.360}, lombaire:{n:"Rachis lombaire",f:.385},
+    bassin:{n:"Bassin / hanche",f:.470}, cuisse:{n:"Cuisse",f:.575},
+    genou:{n:"Genou",f:.715}, jambe:{n:"Jambe",f:.840}, cheville:{n:"Cheville / pied",f:.960},
+    msup:{n:"Membre supérieur",f:.320}
+  },
+
+  exams:{
+    crane:{n:"Crâne / encéphale",cible:"vertex",pos:"dos",ent:"tete"},
+    orl:{n:"Massif facial / ORL",cible:"orbite",pos:"dos",ent:"tete"},
+    cervical:{n:"Rachis cervical",cible:"cou",pos:"dos",ent:"tete"},
+    epaule:{n:"Épaule",cible:"epaule",pos:"dos",ent:"tete"},
+    cardiaque:{n:"Cardiaque",cible:"coeur",pos:"dos",ent:"tete"},
+    sein:{n:"Sein",cible:"pectoral",pos:"ventre",ent:"tete"},
+    dorsal:{n:"Rachis dorsal",cible:"dorsal",pos:"dos",ent:"tete"},
+    abdomen:{n:"Abdomen",cible:"abdomen",pos:"dos",ent:"tete"},
+    lombaire:{n:"Rachis lombaire",cible:"lombaire",pos:"dos",ent:"tete"},
+    bassin:{n:"Bassin / hanche",cible:"bassin",pos:"dos",ent:"pieds"},
+    prostate:{n:"Pelvis / prostate",cible:"bassin",pos:"dos",ent:"pieds"},
+    cuisse:{n:"Cuisse",cible:"cuisse",pos:"dos",ent:"pieds"},
+    genou:{n:"Genou",cible:"genou",pos:"dos",ent:"pieds"},
+    cheville:{n:"Cheville / pied",cible:"cheville",pos:"dos",ent:"pieds"},
+    msup:{n:"Membre supérieur",cible:"msup",pos:"dos",ent:"pieds"}
+  },
+
+  /* Bandes d'exposition le long de z, en cm depuis l'isocentre.
+     Trois niveaux discrets — jamais de dégradé : la forme du rendu
+     doit dire elle-même que la représentation est indicative. */
+  zonesDbdt:[[0,15,0],[15,25,1],[25,45,2],[45,65,1],[65,95,0]],
+  zonesDbdx:[[0,25,0],[25,55,1],[55,95,2]],
+
+  lat:{ central:{n:"Centrale",d:0}, leger:{n:"Légèrement latéralisée",d:11}, franc:{n:"Franchement latéralisée",d:19} },
+  radial:[[0,9,0],[9,16,1],[16,40,2]]
+};
+
+/* Longueurs résonantes. λ air 64 MHz = 4,68 m, raccourcie ~12× en milieu
+   salin (Mattei 2008, 25 cm mesuré à 1,5 T). Mise à l'échelle inverse de
+   la fréquence pour les autres champs — extrapolation, pas mesure. */
+const FREQ={
+  "0.5":{f:21.3,Lt:75,Lr:"70 à 80",Lair:"7,04 m"},
+  "1.0":{f:42.6,Lt:37,Lr:"35 à 40",Lair:"3,52 m"},
+  "1.5":{f:63.8,Lt:25,Lr:"25 à 26",Lair:"2,35 m"},
+  "3.0":{f:127.6,Lt:12,Lr:"12 à 13",Lair:"1,17 m"},
+  "7.0":{f:298,Lt:5,Lr:"5 à 6",Lair:"0,50 m"}
+};
+
+/* ── Contact expert ──────────────────────────────────────────────
+   À compléter avec une adresse professionnelle, pas une adresse privée :
+   ce fichier est distribué tel quel.
+   statusUrl : laisser vide pour afficher le délai de réponse annoncé.
+   Renseigné, il doit pointer vers un JSON {"etat":"ligne|recent|hors"}
+   servi par un petit backend — impossible depuis un fichier local seul. */
+const CONTACT={
+  nom:"Vitor De Sa Lima",
+  titre:"TRM · MRSO certifié ABMRS",
+  email:"",                 // ← adresse professionnelle
+  delai:"48 heures ouvrées",
+  statusUrl:""
+};
+
+const FIELDS=[
+  {k:"B0",n:"Champ statique",risk:"Couple de rotation"},
+  {k:"dB/dx",n:"Gradient spatial",risk:"Translation, Lenz"},
+  {k:"dB/dt",n:"Gradients d'imagerie",risk:"Neurostimulation"},
+  {k:"B1",n:"Radiofréquence",risk:"Échauffement"}
+];
+const SCALE=[
+  {n:"Aucun risque identifié",s:"aucun",c:"--r0",bg:"--r0bg"},
+  {n:"Risque faible",s:"faible",c:"--r1",bg:"--r1bg"},
+  {n:"Risque modéré",s:"modéré",c:"--r2",bg:"--r2bg"},
+  {n:"Risque élevé",s:"élevé",c:"--r3",bg:"--r3bg"},
+  {n:"Risque majeur ou non résolu",s:"majeur",c:"--r4",bg:"--r4bg"}
+];
+const EXPO=[{n:"Peu exposé",c:"--r0",a:.13},{n:"Partiellement exposé",c:"--r2",a:.17},{n:"Exposé",c:"--r4",a:.22}];
+const POS={dos:"Décubitus dorsal",ventre:"Décubitus ventral",latg:"Décubitus latéral gauche",latd:"Décubitus latéral droit"};
+const ENT={tete:"Tête en premier",pieds:"Pieds en premier"};
+const MAG={"0.5":"0,5 T","1.0":"1 T","1.5":"1,5 T","3.0":"3 T","7.0":"7 T"};
+const COIL={body:"Antenne corps du tunnel",head:"Antenne tête cage d'oiseau émission-réception",knee:"Antenne genou émission-réception"};
+
+/* ══════════════════════════════════════════════════════════════ */
+let VIEW="home";
+let S={};
+function reset(){
+  S={accepted:false,step:0,h:170,
+     B:"1.5",ex:"crane",pos:"dos",ent:"tete",coil:"body",
+     kind:null,imp:"pectoral",lat:"leger",label:null,complies:null,
+     ferro:null,cond:null,anchored:null,linear:null,
+     securable:null,tissue:null,slow:null,funcB0:null,dependent:null,
+     tipExcit:null,gradMitig:null,vibr:null,
+     len:null,insul:null,multi:null,sink:null,pathIn:null,
+     tattoo:false,tattooAge:null,tattooSize:null,
+     scores:[null,null,null,null],detail:[[],[],[],[]],
+     mitig:[],trace:[],tab:"B1"};
+}
+reset();
+const $=id=>document.getElementById(id);
+const cv=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const clamp=x=>Math.max(0,Math.min(4,Math.round(x)));
+function log(q,a){ const i=S.trace.findIndex(t=>t[0]===q); const e=[q,a]; if(i>=0)S.trace[i]=e; else S.trace.push(e); }
+
+/* ---------- géométrie ---------- */
+function dOf(k){ return HYP.land[k].f*S.h; }
+function bOf(k){
+  const dC=dOf(HYP.exams[S.ex].cible);
+  return S.ent==="tete" ? (dOf(k)-dC) : (dC-dOf(k));
+}
+function rfLen(){ return S.coil==="body"?HYP.rfLen:S.coil==="head"?HYP.headCoilLen:HYP.kneeCoilLen; }
+function localCoil(){ return S.coil!=="body"; }
+function rfZones(){
+  const h=rfLen()/2;
+  /* Antenne corps : le champ lui-même déborde. La bande intermédiaire est une
+     décroissance réelle de B1, elle concerne tous les dispositifs. */
+  if(!localCoil()) return [[0,h,2],[h,h+HYP.rfFalloff,1],[h+HYP.rfFalloff,95,0]];
+  /* Antenne locale blindée : champ confiné. La bande ne marque plus un champ
+     mais la région d'où le trajet d'un conducteur peut encore l'atteindre —
+     sans objet pour un dispositif compact. */
+  return S.linear==="yes"
+    ? [[0,h,2],[h,h+HYP.rfReach,1],[h+HYP.rfReach,95,0]]
+    : [[0,h,2],[h,95,0]];
+}
+function zonesFor(f){ return f==="B1"?rfZones():f==="dB/dt"?HYP.zonesDbdt:f==="dB/dx"?HYP.zonesDbdx:[[0,95,2]]; }
+function levelAt(f,b){ const a=Math.abs(b); for(const[lo,hi,l] of zonesFor(f)) if(a>=lo&&a<hi) return l; return 0; }
+function radialLevel(){ const d=HYP.lat[S.lat].d; for(const[lo,hi,l] of HYP.radial) if(d>=lo&&d<hi) return l; return 2; }
+function inBore(){ return Math.abs(bOf(S.imp))<=HYP.boreLen/2; }
+
+/* Exposition géométrique par champ, 0–2.
+   dB/dx est un cas à part : tout implant qui entre dans le tunnel traverse
+   la zone de gradient spatial maximal. Sa position au moment de
+   l'acquisition ne dit rien du risque — c'est le trajet qui compte. */
+function expo(f){
+  const b=bOf(S.imp);
+  if(f==="dB/dx") return inBore()?2:1;
+  if(f==="B0")    return inBore()?2:1;
+  return levelAt(f,b);
+}
+
+/* ---------- bandeau ---------- */
+function drawFields(){
+  const on={6:[0,1],7:[2],8:[3]}[S.step]||[];
+  $("fields").innerHTML=FIELDS.map((f,i)=>{
+    const s=S.scores[i],has=s!==null,col=has?cv(SCALE[s].c):cv("--line-2");
+    return `<div class="fld" data-on="${on.includes(i)?1:0}">
+      <span class="fld-k">${f.k}</span><div class="fld-n">${f.n}</div>
+      <div class="fld-s" style="${has?"color:"+col:""}">${has?s:"—"}</div>
+      <div class="fld-bar"><i style="width:${has?((s+1)/5*100):0}%;background:${col}"></i></div></div>`;
+  }).join("");
+}
+
+/* ---------- questions ---------- */
+let QC=0;
+function Q(key,label,hint,opts,row){
+  const id="q"+(++QC);
+  return {id,key,label,opts,row,html:`<div class="q"><div class="q-l">${label}</div>
+    ${hint?`<div class="q-h">${hint}</div>`:""}
+    <div class="opts${row?" row":""}" id="${id}">${opts.map((o,i)=>
+      `<button type="button" class="opt${S[key]===o.v?" on":""}" data-i="${i}">${o.l}${o.t?`<span class="opt-t">${o.t}</span>`:""}</button>`
+    ).join("")}</div></div>`};
+}
+function bindQ(q){
+  const box=$(q.id); if(!box) return;
+  box.querySelectorAll(".opt").forEach(b=>{
+    b.onclick=()=>{
+      box.querySelectorAll(".opt").forEach(x=>x.classList.remove("on"));
+      b.classList.add("on");
+      const o=q.opts[+b.dataset.i];
+      S[q.key]=o.v; log(q.label,o.l);
+      if(q.key==="kind") S.tattoo=(o.v==="tatouage");
+      const n=$("next"); if(n) n.disabled=!STEPS[S.step].ready();
+    };
+  });
+}
+function bindAll(qs){ qs.forEach(bindQ); }
+
+/* ---------- silhouette ---------- */
+/* Profil du corps : demi-épaisseur antéro-postérieure (sagittal) et
+   demi-largeur latérale (coronal), en cm, échantillonnées en fraction
+   de la taille. Valeurs pour un adulte de référence, mises à l'échelle. */
+/* ---------- figure humaine ----------
+   Les deux figures sont dessinées dans un repère naturel « debout » :
+   v = distance au vertex (cm, patient de référence de 170 cm),
+   u = écart latéral (coronal) ou hauteur au-dessus de la table (sagittal).
+   Une matrice les couche ensuite dans le tunnel et les met à l'échelle. */
+
+/* profil latéral d'un sujet en décubitus : [v, u] */
+const SAG_PROF=[[2,1],[4,9],[7,15.5],[12,19],[17.5,17.5],[22,14],[27,12.5],
+ [31,18],[38,22],[48,23],[58,22],[68,20.5],[78,20.5],[88,22],[96,21],
+ [104,18],[114,15.5],[124,14],[134,11.5],[146,10],[155,9],[159,15],[164,18.5],[167,3]];
+
+const COR_FIG=`
+<path d="M -14.5 88 C -16.5 100 -15 113 -13.5 124 C -12.5 138 -11.5 150 -11 159
+  C -11 163 -4.5 163 -4.5 159 C -4.5 150 -5 138 -5 124 C -5 112 -4 100 -3.5 88 Z"/>
+<path d="M 14.5 88 C 16.5 100 15 113 13.5 124 C 12.5 138 11.5 150 11 159
+  C 11 163 4.5 163 4.5 159 C 4.5 150 5 138 5 124 C 5 112 4 100 3.5 88 Z"/>
+<path d="M -11 158 C -13.5 161 -13 167 -10 167.5 C -7 168 -5 165 -4.6 159 Z"/>
+<path d="M 11 158 C 13.5 161 13 167 10 167.5 C 7 168 5 165 4.6 159 Z"/>
+<path d="M -6 26 C -13.5 27 -19.5 31.5 -19.5 38 C -19.5 48 -17 56 -14 64
+  C -13 72 -15.5 78 -16.5 86 C -17 90 -15 93 -12 93 L 12 93
+  C 15 93 17 90 16.5 86 C 15.5 78 13 72 14 64 C 17 56 19.5 48 19.5 38
+  C 19.5 31.5 13.5 27 6 26 Z"/>
+<path d="M -19 33 C -23 42 -24.5 54 -23.5 66 C -23 78 -22 88 -21.5 97
+  C -21.5 101 -15.8 101 -15.8 97 C -15.8 88 -16.2 78 -16.2 66
+  C -16.2 54 -16.6 42 -16.2 33 Z"/>
+<path d="M 19 33 C 23 42 24.5 54 23.5 66 C 23 78 22 88 21.5 97
+  C 21.5 101 15.8 101 15.8 97 C 15.8 88 16.2 78 16.2 66
+  C 16.2 54 16.6 42 16.2 33 Z"/>
+<rect x="-5.6" y="18" width="11.2" height="12" rx="3"/>
+<ellipse cx="0" cy="11.5" rx="8.2" ry="11.5"/>`;
+
+function figTransform(view){
+  const k=S.h/170, dC=dOf(HYP.exams[S.ex].cible), sgn=S.ent==="tete"?1:-1;
+  return view==="sag"
+    ? `matrix(0 ${-k} ${sgn*k} 0 ${-sgn*dC} ${HYP.tableDrop})`
+    : `matrix(0 ${k} ${sgn*k} 0 ${-sgn*dC} 0)`;
+}
+function smoothPath(p){
+  let d=`M ${p[0][0]} ${p[0][1]}`;
+  for(let i=1;i<p.length-1;i++){
+    const[x,y]=p[i],[x2,y2]=p[i+1];
+    d+=` Q ${x} ${y} ${((x+x2)/2).toFixed(1)} ${((y+y2)/2).toFixed(1)}`;
+  }
+  const l=p[p.length-1]; return d+` L ${l[0]} ${l[1]}`;
+}
+function body(view){
+  const lateral=S.pos==="latg"||S.pos==="latd";
+  const fill=`fill="var(--skin)" stroke="var(--line-2)" stroke-width=".55" stroke-linejoin="round"`;
+  /* en décubitus latéral, les deux vues échangent leurs profils */
+  const useCor = (view==="cor") !== lateral;
+  let inner;
+  if(useCor){ inner=COR_FIG; }
+  else {
+    const pts=SAG_PROF.map(([v,u])=>[u,v]);
+    const d=smoothPath(pts)+` L 0 ${SAG_PROF[SAG_PROF.length-1][0]} L 0 ${SAG_PROF[0][0]} Z`;
+    inner=`<path d="${d}"/>`;
+  }
+  /* la vue coronale est centrée sur l'axe ; la sagittale repose sur la table */
+  const off = useCor && view==="sag" ? ` transform="translate(0 -19)"` : "";
+  return `<g ${fill} transform="${figTransform(view)}"><g${off}>${inner}</g></g>`;
+}
+
+/* ---------- bandes d'exposition ----------
+   Vue sagittale : bandes axiales seules.
+   Vue coronale : grille discrète axiale × radiale — le couplage augmente
+   en s'éloignant de l'axe du tunnel, sauf pour B0 qui est homogène. */
+function bands(f,view){
+  const R=HYP.boreDia/2, radial=(view==="cor"&&f!=="B0"), out=[];
+  /* la modulation radiale ne change pas le niveau, elle module son intensité :
+     même couleur, trois crans discrets — jamais un dégradé continu */
+  const rows = radial
+    ? [[-R,-16,1.7],[-16,-9,1.0],[-9,9,.45],[9,16,1.0],[16,R,1.7]]
+    : [[-R,R,1]];
+  zonesFor(f).forEach(([lo,hi,l])=>{
+    [[lo,hi],[-hi,-lo]].forEach(([a,bb])=>{
+      const x=Math.max(a,-95), w=Math.min(bb,95)-x; if(w<=0) return;
+      rows.forEach(([y0,y1,m])=>{
+        const op=(l===0?1:m)*EXPO[l].a;
+        out.push(`<rect x="${x}" y="${y0}" width="${w}" height="${(y1-y0).toFixed(1)}" fill="var(${EXPO[l].c})" opacity="${op.toFixed(3)}"/>`);
+        if(l===1) out.push(`<rect x="${x}" y="${y0}" width="${w}" height="${(y1-y0).toFixed(1)}" fill="url(#h)" opacity="${(.4*(l===0?1:m)).toFixed(2)}"/>`);
+      });
+    });
+  });
+  if(radial) [-16,-9,9,16].forEach(y=>
+    out.push(`<line x1="-95" y1="${y}" x2="95" y2="${y}" stroke="var(--ink-3)" stroke-width=".35" stroke-dasharray="1.5 2" opacity=".5"/>`));
+  return out.join("");
+}
+
+/* ---------- croquis de l'implant ----------
+   Glyphes schématiques, dessinés à la position calculée. */
+const GLYPH={
+  actif:c=>`<rect x="-6" y="-3.6" width="9" height="7.2" rx="1.8" fill="${c}"/>
+    <rect x="-4.6" y="-2.2" width="3" height="4.4" rx=".8" fill="var(--paper)" opacity=".55"/>
+    <path d="M 3 -1.4 C 7 -2.6 9.5 .6 8 3.4" fill="none" stroke="${c}" stroke-width="1.5" stroke-linecap="round"/>
+    <circle cx="8" cy="3.8" r="1.3" fill="${c}"/>`,
+  sonde:c=>`<path d="M -8.5 2.6 C -3 -3.4 3 3.4 8 -2.6" fill="none" stroke="${c}" stroke-width="1.7" stroke-linecap="round"/>
+    <circle cx="8.4" cy="-2.8" r="1.6" fill="${c}"/>`,
+  passif:c=>`<path d="M -6 -3.4 L 4 -4.2 C 7 -4.4 7.6 -.6 6.4 1.8 C 5.4 3.8 2.6 4.4 -1 4.2 L -6 3.6 C -7.6 3.4 -7.6 -3.2 -6 -3.4 Z" fill="${c}"/>
+    <circle cx="-3" cy="0" r="1.1" fill="var(--paper)" opacity=".6"/>
+    <circle cx="2.4" cy="0" r="1.1" fill="var(--paper)" opacity=".6"/>`,
+  etranger:c=>`<path d="M -5.6 -1.8 L -1.4 -4.6 L 3.8 -3 L 6.2 1 L 2.6 4.4 L -3.4 3.4 Z" fill="${c}"/>`,
+  tatouage:c=>`<rect x="-7.5" y="-3.4" width="15" height="6.8" rx="2.6" fill="${c}" opacity=".35"/>
+    <rect x="-7.5" y="-3.4" width="15" height="6.8" rx="2.6" fill="none" stroke="${c}" stroke-width=".9" stroke-dasharray="2 1.4"/>`,
+  inconnu:c=>`<circle cx="0" cy="0" r="5.2" fill="none" stroke="${c}" stroke-width="1.6"/>
+    <text x="0" y="2.4" text-anchor="middle" font-family="var(--cond)" font-weight="600" font-size="7" fill="${c}">?</text>`
+};
+function devName(){
+  return {actif:"le dispositif actif",sonde:"la sonde",passif:"l'implant",
+    etranger:"le corps étranger",tatouage:"le tatouage",inconnu:"le dispositif"}[S.kind]||"le dispositif";
+}
+function devShort(){
+  return {actif:"dispositif actif",sonde:"sonde ou fil",passif:"implant passif",
+    etranger:"corps étranger",tatouage:"tatouage",inconnu:"dispositif non identifié"}[S.kind]||"dispositif";
+}
+
+function draw(view){
+  const R=HYP.boreDia/2, HL=HYP.boreLen/2, f=S.tab;
+  const b=bOf(S.imp), latD=HYP.lat[S.lat].d;
+  const antRegion=["pectoral","coeur","abdomen"].includes(S.imp);
+  const sgnLat=S.lat==="central"?0:(antRegion?-1:1);
+  let s=`<defs><pattern id="h" width="4" height="4" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+    <line x1="0" y1="0" x2="0" y2="4" stroke="var(--ink-3)" stroke-width=".7"/></pattern>
+    <clipPath id="cb"><rect x="${-HL}" y="${-R}" width="${2*HL}" height="${2*R}"/></clipPath></defs>`;
+  s+=`<rect x="${-HL}" y="${-R}" width="${2*HL}" height="${2*R}" fill="var(--bore)" stroke="var(--line-2)" stroke-width=".8"/>`;
+  s+=`<g clip-path="url(#cb)">${bands(f,view)}</g>`;
+  if(view==="sag") s+=`<rect x="${-HL}" y="${HYP.tableDrop}" width="${2*HL}" height="2" fill="var(--line-2)"/>`;
+  s+=`<g clip-path="url(#cb)" opacity=".92">${body(view)}</g>`;
+  s+=`<line x1="0" y1="${-R-3}" x2="0" y2="${R+3}" stroke="var(--ink)" stroke-width=".7" stroke-dasharray="3 2"/>`;
+  s+=`<text x="2" y="${R-2.6}" font-family="var(--mono)" font-size="3.2" fill="var(--ink)">ISOCENTRE</text>`;
+  for(let x=-80;x<=80;x+=20){ if(!x)continue;
+    s+=`<line x1="${x}" y1="${R}" x2="${x}" y2="${R+2}" stroke="var(--ink-3)" stroke-width=".5"/>`;
+    s+=`<text x="${x}" y="${R+6.5}" text-anchor="middle" font-family="var(--mono)" font-size="3.1" fill="var(--ink-3)">${Math.abs(x)}</text>`;}
+  s+=`<text x="${HL-2}" y="${-R-4.5}" text-anchor="end" font-family="var(--mono)" font-size="3.2" fill="var(--ink-3)">ENTRÉE ▸</text>`;
+  if(view==="cor"&&f!=="B0")
+    s+=`<text x="${-HL+2}" y="${-R+4.4}" font-family="var(--mono)" font-size="3" fill="var(--ink-3)">COUPLAGE CROISSANT VERS LA PAROI</text>`;
+  const ant=HYP.tableDrop-19, post=HYP.tableDrop-4;
+  const iy=view==="sag"?(S.pos==="ventre"?(antRegion?post:ant):(antRegion?ant:post)):(sgnLat*latD);
+  const lv=f==="dB/dx"||f==="B0"?expo(f):levelAt(f,b);
+  const col=`var(${EXPO[lv].c})`;
+  const bl=Math.max(-70,Math.min(70,b)), anc=b>56?"end":b<-56?"start":"middle";
+  const g=(GLYPH[S.kind]||GLYPH.inconnu)(col);
+  s+=`<line x1="${b}" y1="${iy-5}" x2="${bl}" y2="${-R-9}" stroke="var(--ink-3)" stroke-width=".5"/>
+   <g transform="translate(${b} ${iy})"><circle r="8.4" fill="var(--paper)" opacity=".55"/>
+   <circle r="8.4" fill="none" stroke="${col}" stroke-width=".7" opacity=".65"/>${g}</g>
+   <text x="${bl}" y="${-R-11.5}" text-anchor="${anc}" font-family="var(--cond)" font-weight="600" font-size="4.2" fill="var(--ink)">${HYP.land[S.imp].n}</text>
+   <text x="${bl}" y="${-R-6.6}" text-anchor="${anc}" font-family="var(--mono)" font-size="3.2" fill="var(--ink-3)">${devShort().toUpperCase()} · ${Math.round(Math.abs(b))} CM${inBore()?"":" · HORS TUNNEL"}</text>`;
+  return s;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ÉTAPES
+   ══════════════════════════════════════════════════════════════ */
+const STEPS=[];
+
+/* 0 — porte d'entrée */
+STEPS[0]={
+  render:()=>`<h2>Avant d'utiliser cet outil</h2>
+  <div class="sub">Cet écran s'affiche à chaque ouverture. Il n'est pas mémorisé.</div>
+  <div class="gate"><h3>Conditions d'utilisation</h3>
+  <p>Cet outil est destiné à un usage <strong>pédagogique et documentaire</strong>. Il structure une analyse de risque ; il ne délivre aucune conclusion médicale et ne se substitue à aucune décision clinique.</p>
+  <ul>
+    <li>L'outil <strong>ne décide pas</strong> de la réalisation ou non d'un examen. Il produit une estimation graduée du risque, destinée à être discutée.</li>
+    <li>La décision finale relève du <strong>médecin radiologue responsable de l'IRM</strong>, le seul à même de mettre le risque en balance avec le bénéfice attendu, au vu de l'ensemble du contexte clinique.</li>
+    <li>L'outil <strong>n'engage aucune responsabilité médicale</strong>. La responsabilité de l'analyse, de son interprétation et de sa documentation reste entièrement celle du professionnel qui l'utilise.</li>
+    <li>Les représentations spatiales sont <strong>schématiques et indicatives</strong>. Ce ne sont pas des cartographies de champ, et elles ne remplacent ni l'étiquetage du constructeur ni les conditions d'utilisation propres au dispositif.</li>
+    <li>Certaines configurations — dispositifs multiples, mailles, grilles, matériel inconnu, géométries inhabituelles — <strong>ne sont pas couvertes</strong>. Le recours à un physicien ou expert en sécurité IRM peut être nécessaire.</li>
+    <li>En cas de doute sur une réponse, retenir systématiquement <strong>l'option la plus restrictive</strong>.</li>
+  </ul>
+  <label class="chk"><input type="checkbox" id="ok"><span>J'ai lu et j'accepte ces conditions. Je comprends que cet outil ne remplace pas l'avis médical.</span></label></div>
+  <div class="actions"><button class="act" id="next" disabled>Commencer l'analyse</button></div>`,
+  bind(){ $("ok").onchange=e=>{S.accepted=e.target.checked;$("next").disabled=!this.ready();}; },
+  ready:()=>S.accepted
+};
+
+/* 1 — contexte */
+function sel(id,obj,val,lbl){
+  return `<select id="${id}">${Object.entries(obj).map(([k,v])=>
+    `<option value="${k}"${k===val?" selected":""}>${lbl?lbl(v):(v.n||v)}</option>`).join("")}</select>`;
+}
+STEPS[1]={
+  render:()=>`<h2>Contexte de l'examen</h2>
+  <div class="sub">La localisation du risque maximal n'est pas celle de l'anatomie explorée. Ces paramètres permettent de calculer à quels champs le dispositif sera réellement exposé.</div>
+  <div class="ctrl">
+    <div class="f"><label for="h">Taille du patient</label><input type="range" id="h" min="140" max="210" step="1" value="${S.h}"><div class="hval" id="hv">${S.h} cm</div></div>
+    <div class="f"><label for="B">Aimant</label>${sel("B",MAG,S.B,v=>v)}</div>
+    <div class="f"><label for="ex">Examen</label>${sel("ex",HYP.exams,S.ex)}</div>
+    <div class="f"><label for="pos">Position</label>${sel("pos",POS,S.pos,v=>v)}</div>
+    <div class="f"><label for="ent">Sens d'entrée</label>${sel("ent",ENT,S.ent,v=>v)}
+      <div class="fh">Modifie le schéma, pas le niveau : les cartes de champ sont symétriques autour de l'isocentre.</div></div>
+    <div class="f"><label for="coil">Antenne d'émission</label>${sel("coil",COIL,S.coil,v=>v)}
+      <div class="fh">Seule l'antenne qui <strong>émet</strong> compte ici. Une antenne tête multicanaux — 8, 20, 64 canaux — est en général <strong>réceptrice seule</strong> : elle est posée sur le patient mais l'émission passe par l'antenne corps du tunnel. Si vous ignorez ce que fait votre antenne, retenir l'antenne corps — c'est l'option prudente. Si plusieurs antennes d'émission sont réellement disponibles, l'écran radiofréquence permettra de comparer ce que chacune change.</div></div>
+  </div>
+  ${helpCoil()}
+  <div class="actions"><button class="act" id="next">Suivant</button></div>`,
+  bind(){
+    $("h").oninput=e=>{S.h=+e.target.value;$("hv").textContent=S.h+" cm";};
+    $("ex").onchange=e=>{S.ex=e.target.value;const x=HYP.exams[S.ex];
+      S.pos=x.pos;S.ent=x.ent;$("pos").value=x.pos;$("ent").value=x.ent;};
+    ["B","pos","ent","coil"].forEach(k=>$(k).onchange=e=>{S[k]=e.target.value;});
+  },
+  ready:()=>true,
+  done(){
+    log("Aimant",MAG[S.B]); log("Examen",HYP.exams[S.ex].n);
+    log("Installation",POS[S.pos]+", "+ENT[S.ent]); log("Antenne d'émission",COIL[S.coil]);
+    log("Taille du patient",S.h+" cm");
+  }
+};
+
+/* 2 — dispositif */
+STEPS[2]={
+  render(){
+    this.qs=[
+      Q("kind","Nature du dispositif","",[
+        {l:"Implant passif métallique (prothèse, clip, stent, vis)",v:"passif"},
+        {l:"Dispositif actif — pacemaker, défibrillateur, neurostimulateur, pompe",v:"actif"},
+        {l:"Sonde, fil ou électrode — y compris abandonnée",v:"sonde"},
+        {l:"Corps étranger (projectile, éclat, fragment)",v:"etranger"},
+        {l:"Tatouage ou maquillage permanent",v:"tatouage"},
+        {l:"Dispositif non identifié",v:"inconnu"}]),
+      Q("label","Étiquetage constructeur","Étiquette produit, carte patient, notice, base de données d'implants.",[
+        {l:"MR Safe",v:"safe",t:"aucun risque connu"},
+        {l:"MR Conditional",v:"cond",t:"sous conditions"},
+        {l:"MR Unsafe",v:"unsafe",t:"non compatible"},
+        {l:"Aucun étiquetage disponible",v:"none"},
+        {l:"Étiquetage non retrouvé à ce stade",v:"unknown"}])
+    ];
+    return `<h2>Identification du dispositif</h2>
+    <div class="sub">Une seule analyse par dispositif. Si le patient en porte plusieurs, reprendre l'analyse pour chacun.</div>
+    ${this.qs[0].html}
+    <div class="ctrl">
+      <div class="f"><label for="imp">Localisation dans le corps</label>${sel("imp",HYP.land,S.imp)}</div>
+      <div class="f"><label for="lat">Position latérale</label>${sel("lat",HYP.lat,S.lat)}
+        <div class="fh">Pour une sonde ou un fil, retenir le point le plus latéral de son trajet : c'est là que le couplage est maximal.</div></div>
+    </div>
+    ${this.qs[1].html}
+    <div class="actions"><button class="act" id="next"${S.kind&&S.label?"":" disabled"}>Suivant</button></div>`;
+  },
+  bind(){ bindAll(this.qs);
+    $("imp").onchange=e=>{S.imp=e.target.value;};
+    $("lat").onchange=e=>{S.lat=e.target.value;};
+  },
+  ready:()=>S.kind&&S.label,
+  done(){ log("Localisation du dispositif",HYP.land[S.imp].n); log("Position latérale",HYP.lat[S.lat].n); }
+};
+
+/* 3 — conditions étiquetage */
+STEPS[3]={
+  skip:()=>S.label!=="cond",
+  render(){
+    this.qs=[Q("complies","Les conditions d'utilisation peuvent-elles être intégralement respectées ?",
+      "Champ statique maximal, gradient spatial, SAR, durée d'acquisition, position, séquences autorisées, mode de programmation.",[
+      {l:"Oui, toutes les conditions sont respectées",v:"yes"},
+      {l:"Non, au moins une condition ne peut être respectée",v:"no"},
+      {l:"Conditions non vérifiables à ce stade",v:"unknown"}])];
+    return `<h2>Conditions de l'étiquetage</h2>
+    <div class="sub">Un dispositif MR Conditional n'est sûr que dans les limites décrites par son constructeur.</div>
+    ${this.qs[0].html}
+    <div class="actions"><button class="act" id="next"${S.complies?"":" disabled"}>Suivant</button></div>`;
+  },
+  bind(){ bindAll(this.qs); },
+  ready:()=>!!S.complies
+};
+
+/* 4 — propriétés */
+STEPS[4]={
+  render(){
+    this.qs=[
+      Q("ferro","Le dispositif est-il ferromagnétique ?",
+        "Autrement dit : subira-t-il une rotation ou un déplacement marqué en champ fort ? En cas de matériau non documenté, répondre « inconnu ».",
+        [{l:"Non — non ferromagnétique",v:"no"},{l:"Oui, ou fortement suspecté",v:"yes"},{l:"Inconnu",v:"unknown"}]),
+      Q("cond","Le dispositif est-il électriquement conducteur ?",
+        "La quasi-totalité des implants métalliques le sont, y compris non ferromagnétiques. Les pigments de tatouage peuvent l'être.",
+        [{l:"Oui",v:"yes"},{l:"Non",v:"no"},{l:"Inconnu",v:"unknown"}],true),
+      Q("anchored","Le dispositif est-il ancré ou fibrosé de façon stable ?",
+        "Un implant ancien, encapsulé ou vissé dans l'os est considéré comme ancré. Un corps étranger libre ou un implant récent ne l'est pas.",
+        [{l:"Oui — ancré, fibrosé, ou de masse négligeable",v:"yes"},{l:"Non — mobile, récent, ou dans un tissu sensible",v:"no"},{l:"Inconnu",v:"unknown"}]),
+      Q("linear","Le dispositif est-il linéaire ?",
+        "Fil, sonde, électrode, cathéter, ou tout conducteur allongé. Une prothèse compacte ne l'est pas.",
+        [{l:"Oui — conducteur allongé",v:"yes"},{l:"Non — compact",v:"no"}],true)
+    ];
+    return `<h2>Propriétés du dispositif</h2>
+    <div class="sub">Ces quatre caractéristiques déterminent à quels mécanismes physiques le dispositif est sensible.</div>
+    ${this.qs.map(q=>q.html).join("")}
+    <div class="actions"><button class="act" id="next"${this.ready()?"":" disabled"}>Voir la position dans l'aimant</button></div>`;
+  },
+  bind(){ bindAll(this.qs); },
+  ready:()=>S.ferro&&S.cond&&S.anchored&&S.linear
+};
+
+/* 5 — vue spatiale */
+STEPS[5]={
+  render(){
+    return `<h2>Position dans l'aimant</h2>
+    <div class="sub">Rien à répondre ici. Ces deux vues montrent où se trouve le dispositif par rapport aux volumes exposés, et alimentent directement l'analyse des écrans suivants.</div>
+    <div class="tabs" id="tabs">
+      ${["B1","dB/dt","dB/dx","B0"].map(f=>{
+        const fl=FIELDS.find(x=>x.k===f);
+        return `<button class="tab${S.tab===f?" on":""}" data-f="${f}">${f} · ${fl.n}</button>`;}).join("")}
+    </div>
+    <div class="panel"><div class="panel-h"><div class="panel-t">Vue sagittale</div><div class="panel-s" id="sagS"></div></div>
+      <svg id="sag" viewBox="-95 -54 190 100" role="img" aria-label="Coupe sagittale du patient dans le tunnel"></svg>
+      <div class="legend" id="leg"></div></div>
+    <div class="panel"><div class="panel-h"><div class="panel-t">Vue coronale</div><div class="panel-s" id="corS"></div></div>
+      <svg id="cor" viewBox="-95 -54 190 100" role="img" aria-label="Coupe coronale du patient dans le tunnel"></svg></div>
+    <div class="eyebrow">Exposition géométrique calculée</div>
+    <div class="read" id="read"></div>
+    <div class="note" id="msg"></div>
+    <details><summary>Hypothèses de construction</summary><div class="dbody" id="assump"></div></details>
+    <div class="actions"><button class="act" id="next">Analyser les forces mécaniques</button>
+      <button class="gh" id="back">Modifier les paramètres</button></div>`;
+  },
+  bind(){
+    const redraw=()=>{
+      $("sag").innerHTML=draw("sag"); $("cor").innerHTML=draw("cor");
+      $("sagS").textContent=`${POS[S.pos]} · ${ENT[S.ent]} · ${S.h} cm`;
+      $("corS").textContent=`${MAG[S.B]} · ${COIL[S.coil]}`;
+      $("leg").innerHTML=EXPO.map(l=>`<div class="lg"><span class="sw" style="background:var(${l.c});opacity:${l.a+.3}"></span>${l.n}</div>`).join("")
+        +`<div class="lg" style="color:var(--ink-3)">Graduations en cm depuis l'isocentre</div>`;
+      const b=bOf(S.imp), rl=radialLevel();
+      $("read").innerHTML=FIELDS.map(f=>{
+        let l=expo(f.k); if(f.k==="B1"&&rl===2&&l>0)l=2;
+        let w;
+        if(f.k==="B0") w="Homogène dans tout le volume d'imagerie, et présent en permanence même hors acquisition.";
+        else if(f.k==="dB/dx") w="Tout implant qui entre dans le tunnel traverse la zone de gradient maximal. C'est le trajet qui expose, pas la position finale.";
+        else if(f.k==="dB/dt") w="Minimal à l'isocentre, maximal vers 35 cm au-dessus et en dessous.";
+        else w=localCoil()
+          ? `Antenne locale : champ confiné dans ${rfLen()} cm. Pour un conducteur allongé, c'est son trajet qui décide du couplage.`
+          : `Antenne corps : ${rfLen()} cm, avec une décroissance du champ au-delà et non une coupure nette.`;
+        const lbl=(f.k==="B1"&&l===1&&localCoil()&&S.linear==="yes")?"Selon le trajet du conducteur":EXPO[l].n;
+        return `<div class="rc"><div class="rc-k">${f.k} · ${f.risk}</div><div class="rc-n">${f.n}</div>
+          <div class="rc-v" style="color:var(${EXPO[l].c})">${lbl}</div><div class="rc-w">${w}</div></div>`;
+      }).join("");
+      let m=`<strong>${HYP.land[S.imp].n} à ${Math.round(Math.abs(b))} cm de l'isocentre`;
+      m+=inBore()?".</strong> ":", hors du tunnel.</strong> ";
+      const lb1=levelAt("B1",b);
+      m+=lb1===2?`Le dispositif est dans le volume d'émission (${rfLen()} cm). `
+        :lb1===1?(localCoil()
+            ?`Le dispositif est hors du volume d'émission (${rfLen()} cm), mais assez près pour qu'un conducteur allongé puisse l'atteindre. `
+            :`Le dispositif est juste au-delà de l'antenne corps (${rfLen()} cm), dans la zone où le champ décroît sans s'annuler. `)
+        :`Le dispositif est hors du volume d'émission (${rfLen()} cm). `;
+      if(rl===2) m+=`Sa latéralisation le rapproche de la paroi, où le champ électrique induit est le plus fort : c'est le facteur dominant de l'échauffement. `;
+      m+=`Représentation indicative : bandes qualitatives, pas cartographie de champ.`;
+      $("msg").innerHTML=m;
+    };
+    document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
+      document.querySelectorAll(".tab").forEach(x=>x.classList.remove("on"));
+      t.classList.add("on"); S.tab=t.dataset.f; redraw();
+    });
+    $("back").onclick=()=>go(1);
+    $("assump").innerHTML=`<p>Toutes les valeurs ci-dessous sont regroupées dans l'objet <code>HYP</code> en haut du fichier.</p>
+    <table><tbody>
+    <tr><td>Antenne corps</td><td>${HYP.rfLen} cm — mesure directe sur Ingenia 1,5 T</td></tr>
+    <tr><td>Antenne tête T/R</td><td>${HYP.headCoilLen} cm — boîtier mesuré sur l'antenne 8 canaux de l'Ingenia 1,5 T ; le volume d'émission actif est plus court</td></tr>
+    <tr><td>Antenne genou T/R</td><td>${HYP.kneeCoilLen} cm — <strong>non validé</strong> : le parc de référence n'en comporte pas, l'antenne genou y est réceptrice seule</td></tr>
+    <tr><td>FOV en z</td><td>${HYP.fovZ} cm au maximum, 30 à 40 cm en pratique — sans effet sur la zone exposée : l'antenne corps émet dans tout son volume quel que soit le FOV prescrit</td></tr>
+    <tr><td>Décroissance, antenne corps</td><td>${HYP.rfFalloff} cm au-delà de l'antenne — <strong>seule valeur du modèle RF encore non ancrée</strong></td></tr>
+    <tr><td>Portée d'un conducteur, antenne locale</td><td>${HYP.rfReach} cm — distance depuis laquelle le trajet d'un conducteur peut encore atteindre le volume d'émission ; sans objet pour un dispositif compact</td></tr>
+    <tr><td>Tunnel</td><td>${HYP.boreDia} cm de diamètre, ${HYP.boreLen} cm de long</td></tr>
+    <tr><td>Pic dB/dt</td><td>25 à 45 cm de l'isocentre</td></tr>
+    <tr><td>Repères anatomiques</td><td>fractions de taille, anthropométrie standard</td></tr>
+    <tr><td>Longueurs résonantes</td><td>25 cm mesuré à 1,5 T ; autres champs extrapolés par la fréquence</td></tr>
+    </tbody></table>
+    <p style="margin-top:10px">Le sens d'entrée ne change pas le niveau calculé : les cartes de champ sont symétriques autour de l'isocentre. Il pilote le dessin et la faisabilité du positionnement, pas le risque.</p>
+    <p style="margin-top:10px">Le décubitus ventral place la loge pectorale au plus près de la paroi du tunnel — configuration probablement la plus défavorable pour un boîtier de stimulateur.</p>`;
+    redraw();
+  },
+  ready:()=>true
+};
+
+/* 6 — forces mécaniques : B0 + dB/dx */
+STEPS[6]={
+  render(){
+    const qs=[];
+    if(S.anchored!=="yes") qs.push(Q("securable",`Le dispositif (${devShort()}) peut-il être immobilisé avant l'entrée en zone IV ?`,
+      "Bandage compressif, contention externe, immobilisation mécanique.",
+      [{l:"Oui",v:"yes"},{l:"Non",v:"no"}],true));
+    qs.push(Q("tissue",`Le dispositif (${devShort()}) est-il au contact d'un tissu où un déplacement serait dangereux ?`,
+      "Structure vasculaire, tissu nerveux, œil, parenchyme pulmonaire, voisinage cardiaque.",
+      [{l:"Non",v:"no"},{l:"Oui",v:"yes"},{l:"Inconnu",v:"unknown"}],true));
+    if(S.cond!=="no") qs.push(Q("slow","Le déplacement du patient dans le tunnel peut-il être ralenti et contrôlé ?",
+      "Un déplacement lent limite les forces de Lenz induites dans tout matériau conducteur, même non ferromagnétique.",
+      [{l:"Oui",v:"yes"},{l:"Non",v:"no"}],true));
+    if(S.kind==="actif"){
+      qs.push(Q("funcB0","La fonction du dispositif est-elle altérée par le champ statique ou son gradient spatial ?",
+        "Commutateur magnétique, reprogrammation, passage en mode asynchrone, arrêt de stimulation.",
+        [{l:"Non",v:"no"},{l:"Oui",v:"yes"},{l:"Inconnu",v:"unknown"}],true));
+      qs.push(Q("dependent","La santé du patient dépend-elle du fonctionnement continu du dispositif ?",
+        "Patient stimulodépendant, suppléance vitale, perfusion continue.",
+        [{l:"Non",v:"no"},{l:"Oui",v:"yes"},{l:"Inconnu",v:"unknown"}],true));
+    }
+    this.qs=qs;
+    return `<h2>Forces mécaniques <em>B0 · dB/dx</em></h2>
+    <div class="sub">Le champ statique exerce un couple de rotation, homogène dans tout le volume d'imagerie et présent en permanence. Le gradient spatial exerce une force de translation, proche de zéro à l'isocentre et maximale aux extrémités du tunnel — le moment critique est donc le passage du patient, pas l'acquisition.</div>
+    ${qs.map(q=>q.html).join("")}
+    <div class="actions"><button class="act" id="next"${this.ready()?"":" disabled"}>Suivant</button></div>`;
+  },
+  bind(){ bindAll(this.qs); },
+  ready(){
+    if(S.anchored!=="yes"&&!S.securable) return false;
+    if(!S.tissue) return false;
+    if(S.cond!=="no"&&!S.slow) return false;
+    if(S.kind==="actif"&&!(S.funcB0&&S.dependent)) return false;
+    return true;
+  },
+  score(){
+    let base=S.ferro==="no"?0:S.ferro==="unknown"?2:3;
+    const w0=[],wx=[];
+    if(S.ferro==="no"){ w0.push("Matériau non ferromagnétique : pas de couple significatif."); }
+    else if(S.ferro==="unknown"){ w0.push("Ferromagnétisme non documenté : traité par précaution comme potentiellement ferromagnétique."); }
+    if(S.ferro!=="no"){
+      if(S.anchored==="yes"){ base-=1; w0.push("Ancrage stable : déplacement peu probable."); }
+      else if(S.securable==="yes"){ base-=1; S.mitig.push(["Immobilisation","Immobiliser le dispositif avant l'entrée en zone IV et vérifier la contention après installation du patient."]); }
+      else { base+=1; w0.push("Dispositif ni ancré ni immobilisable."); }
+      if(S.tissue==="yes"){ base+=1; w0.push("Voisinage d'un tissu sensible au déplacement."); }
+      else if(S.tissue==="unknown") w0.push("Localisation tissulaire imprécise.");
+    }
+    let s0=base; if(!inBore()){ s0-=1; w0.push("Dispositif hors du volume de l'aimant."); }
+    let sx=base;
+    wx.push(...w0.filter(x=>!x.startsWith("Dispositif hors")));
+    if(S.cond!=="no"){
+      if(sx<1){ sx=1; wx.push("Matériau conducteur : forces de Lenz possibles au passage, même sans ferromagnétisme."); }
+      if(S.slow==="yes"){ sx=Math.max(0,sx-1); S.mitig.push(["Vitesse de déplacement","Faire progresser le patient lentement à l'entrée et à la sortie du tunnel : les forces de Lenz croissent avec la vitesse."]); }
+      else { sx+=1; wx.push("Déplacement lent non réalisable."); }
+    }
+    if(inBore()) wx.push("Le dispositif traverse la zone de gradient spatial maximal à l'entrée et à la sortie.");
+    if(S.kind==="actif"&&(S.funcB0==="yes"||S.funcB0==="unknown")){
+      s0+=1; sx+=1; const t="Fonction du dispositif potentiellement altérée par le champ.";
+      w0.push(t); wx.push(t);
+      if(S.dependent==="yes"){ s0+=2; sx+=2; const u="Patient dépendant du dispositif : une altération de fonction a une conséquence directe."; w0.push(u); wx.push(u); }
+      else if(S.dependent==="unknown"){ s0+=1; sx+=1; }
+      S.mitig.push(["Encadrement du dispositif actif","Faire valider le mode de programmation et la surveillance péri-examen par le service référent avant l'installation."]);
+    }
+    return [{i:0,s:clamp(s0),w:w0},{i:1,s:clamp(sx),w:wx}];
+  }
+};
+
+/* 7 — dB/dt */
+STEPS[7]={
+  render(){
+    const e=expo("dB/dt"), b=bOf(S.imp), qs=[];
+    if(S.linear==="yes"){
+      qs.push(Q("tipExcit",`L'extrémité du conducteur (${devShort()}) est-elle au contact d'un tissu excitable ?`,
+        "Le point critique est le tissu cardiaque : un fil focalise les champs électriques induits à son extrémité et peut potentialiser une arythmie.",
+        [{l:"Non",v:"no"},{l:"Oui — tissu cardiaque",v:"cardiac"},{l:"Oui — autre tissu excitable",v:"other"},{l:"Inconnu",v:"unknown"}]));
+      qs.push(Q("gradMitig","Une réduction de l'amplitude maximale de gradient est-elle envisageable ?",
+        "Champ de vue élargi, coupes plus épaisses, séquences moins agressives.",
+        [{l:"Oui",v:"yes"},{l:"Non",v:"no"}],true));
+    } else {
+      qs.push(Q("vibr","Une vibration induite représenterait-elle un risque pour le dispositif ou le patient ?",
+        "Dispositif fragile, voisinage d'une structure sensible, ancrage précaire.",
+        [{l:"Non",v:"no"},{l:"Oui",v:"yes"},{l:"Inconnu",v:"unknown"}],true));
+    }
+    this.qs=qs;
+    const txt=e===2?"dans la zone de gradient temporel maximal":e===1?"en bordure de la zone de gradient maximal":"proche de l'isocentre, là où le gradient temporel est le plus faible";
+    return `<h2>Gradients d'imagerie <em>dB/dt</em></h2>
+    <div class="sub">Le gradient temporel est minimal à l'isocentre et maximal vers 35 cm au-dessus et en dessous du centre. Un examen centré loin du dispositif peut donc l'exposer davantage qu'un examen centré dessus.</div>
+    <div class="note"><strong>${HYP.land[S.imp].n} à ${Math.round(Math.abs(b))} cm de l'isocentre : ${txt}.</strong> Ce niveau est calculé à partir de la taille du patient, de l'examen et de la localisation du dispositif.</div>
+    ${qs.map(q=>q.html).join("")}
+    <div class="actions"><button class="act" id="next"${this.ready()?"":" disabled"}>Suivant</button></div>`;
+  },
+  bind(){ bindAll(this.qs); },
+  ready:()=>S.linear==="yes"?(S.tipExcit&&S.gradMitig):!!S.vibr,
+  score(){
+    const w=[]; const z=expo("dB/dt"); const b=bOf(S.imp);
+    if(S.cond==="no") return [{i:2,s:0,w:["Matériau non conducteur : pas de courant induit significatif."]}];
+    let s;
+    if(S.linear==="yes"){
+      s=1+z; w.push(`Conducteur allongé à ${Math.round(Math.abs(b))} cm de l'isocentre, ${z===2?"dans la zone de gradient maximal":z===1?"en bordure de zone":"proche de l'isocentre"}.`);
+      if(S.tipExcit==="cardiac"){ s+=2; w.push("Extrémité au contact du tissu cardiaque : potentialisation arythmogène."); }
+      else if(S.tipExcit==="other"){ s+=1; w.push("Extrémité au contact d'un tissu excitable."); }
+      else if(S.tipExcit==="unknown"){ s+=1; w.push("Position de l'extrémité non établie."); }
+      if(s>=2){
+        if(S.gradMitig==="yes"){ s-=1; S.mitig.push(["Adaptation de séquence","Réduire l'amplitude maximale de gradient : champ de vue élargi, coupes plus épaisses, séquences moins agressives."]); }
+        else w.push("Adaptation de séquence non réalisable.");
+      }
+    } else {
+      s=z===2?1:0;
+      if(S.vibr==="yes"){ s+=2; w.push("Risque de vibration induite retenu."); }
+      else if(S.vibr==="unknown"){ s+=1; w.push("Risque de vibration non établi."); }
+      if(!s) w.push("Dispositif compact, hors de la zone de gradient maximal.");
+    }
+    if(S.kind==="actif"){ s+=1; w.push("Dispositif actif : tensions et courants induits susceptibles de perturber la fonction."); }
+    return [{i:2,s:clamp(s),w}];
+  }
+};
+
+/* Comparateur d'antennes d'émission. L'antenne n'est pas seulement un fait à
+   enregistrer : quand plusieurs sont disponibles, c'est un levier que le TRM
+   peut actionner. L'outil montre ce que chacune change, il ne choisit pas. */
+function expoFor(coil){
+  const save=S.coil; S.coil=coil;
+  let e=expo("B1"); const L=rfLen();
+  S.coil=save; return {e,L};
+}
+function coilCompare(){
+  return Object.entries(COIL).map(([k,n])=>{
+    const {e,L}=expoFor(k);
+    const lbl=(e===1&&k!=="body"&&S.linear==="yes")?"Selon le trajet du conducteur":EXPO[e].n;
+    return `<button type="button" class="cmpo${k===S.coil?" on":""}" data-c="${k}">
+      <span class="cmpo-n">${n}</span>
+      <span class="cmpo-l" style="color:var(${EXPO[e].c})">${lbl}</span>
+      <span class="cmpo-d">${L} cm</span></button>`;
+  }).join("");
+}
+
+/* Symboles d'antenne, famille IEC 60417. Le sens des têtes de flèche donne la
+   fonction : vers le centre = émission, vers l'extérieur = réception, les deux
+   = émission-réception (6192). Dessinés uniquement dans l'aide, repliée par
+   défaut. */
+function coilSymbol(kind){
+  /* Bras construit le long de +x depuis le centre (50,50), puis répété par
+     rotation. x croissant = on s'éloigne du centre. */
+  const zig=(a,b)=>{
+    const n=Math.max(4,Math.round((b-a)/3.2)), st=(b-a)/n; let d=`M ${a.toFixed(1)} 50`;
+    for(let i=1;i<=n;i++) d+=` L ${(a+i*st).toFixed(1)} ${i===n?50:(50+(i%2?-2.5:2.5)).toFixed(1)}`;
+    return `<path d="${d}" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>`;
+  };
+  const IN=62, OUT=86, H=6.2;
+  const headIn =`<path d="M ${IN} 50 L ${IN+H} 46.4 L ${IN+H} 53.6 Z" fill="currentColor"/>`;
+  const headOut=`<path d="M ${OUT} 50 L ${OUT-H} 46.4 L ${OUT-H} 53.6 Z" fill="currentColor"/>`;
+  let arm;
+  if(kind==="tx")      arm=headIn+zig(IN+H,OUT);
+  else if(kind==="rx") arm=zig(IN,OUT-H)+headOut;
+  else                 arm=headIn+zig(IN+H,OUT-H)+headOut;
+  const arms=[45,135,225,315].map(a=>`<g transform="rotate(${a} 50 50)">${arm}</g>`).join("");
+  return `<svg viewBox="0 0 100 104" width="88" height="92" role="img" aria-hidden="true">
+    <path d="M 43.4 87.4 A 38 38 0 1 1 56.6 87.4" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>
+    <path d="M 44.3 88.2 Q 42.4 95 44.4 101" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+    <path d="M 55.7 88.2 Q 57.6 95 55.6 101" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+    ${arms}</svg>`;
+}
+
+/* Aide contextuelle sur la nature de l'antenne. C'est l'entrée la plus
+   susceptible d'être mal renseignée, et une erreur y sous-estime le risque. */
+function helpCoil(){
+  return `<details class="help"><summary>Comment savoir si mon antenne émet, reçoit, ou les deux ?</summary>
+  <div class="dbody">
+  <p><strong>L'information est sur l'antenne, pas sur la console.</strong> Le système n'indique pas si l'antenne en place émet ou se contente de recevoir. Il faut regarder l'antenne elle-même.</p>
+  <p><strong>1. Le symbole normalisé.</strong> Les antennes portent un pictogramme défini par la norme IEC 60417, qui recense les symboles graphiques apposés sur les équipements. Le sens des flèches donne la fonction :</p>
+  <div class="syms">
+    <figure><div>${coilSymbol("tx")}</div><figcaption><strong>Émission</strong><span>Têtes vers le centre</span></figcaption></figure>
+    <figure><div>${coilSymbol("rx")}</div><figcaption><strong>Réception</strong><span>Têtes vers l'extérieur</span></figcaption></figure>
+    <figure><div>${coilSymbol("tr")}</div><figcaption><strong>Émission-réception</strong><span>Têtes dans les deux sens</span></figcaption></figure>
+  </div>
+  <p><strong>2. Le marquage écrit.</strong> Les mentions « T/R », « Tx/Rx » ou « transmit/receive » désignent une antenne émettrice-réceptrice ; « Rx » seul désigne une antenne réceptrice.</p>
+  <p><strong>3. Son aspect.</strong> Une antenne tête émettrice-réceptrice est une cage d'oiseau : un cylindre à barreaux réguliers. Une antenne réceptrice multicanaux est un assemblage dense d'éléments.</p>
+  <p><strong>4. Sa notice</strong> le précise explicitement, ainsi que ses conditions d'utilisation.</p>
+  <p style="margin-top:12px"><strong>Si le doute persiste :</strong> demander au physicien médical ou au spécialiste d'application. En attendant, retenir l'antenne corps du tunnel — c'est l'hypothèse qui ne sous-estime jamais l'exposition.</p>
+  <p style="margin-top:12px;color:var(--ink-3)">Pourquoi cela compte : une antenne réceptrice ne modifie en rien le volume irradié. Se tromper ici en déclarant une antenne locale alors que l'émission vient du tunnel produit une estimation faussement rassurante.</p>
+  </div></details>`;
+}
+
+/* 8 — B1 */
+STEPS[8]={
+  render(){
+    const F=FREQ[S.B], e=expo("B1"), rl=radialLevel(), b=bOf(S.imp);
+    const qs=[
+      Q("len",`Longueur totale du trajet conducteur (${devShort()})`,
+        `À ${MAG[S.B]} (${F.f} MHz), la longueur résonante en tissu est de l'ordre de ${F.Lr} cm. Le risque est maximal <em>au voisinage</em> de cette longueur — et la résonance est périodique, elle se reproduit sur les harmoniques.`,
+        [{l:`Nettement inférieure à ${F.Lt} cm`,v:"short"},
+         {l:`Proche de ${F.Lr} cm`,v:"resonant",t:"zone critique"},
+         {l:`Supérieure à ${F.Lt} cm`,v:"long",t:"harmonique possible"},
+         {l:"Longueur inconnue",v:"unknown"}]),
+      Q("insul","Isolation du conducteur","Une isolation épaisse réduit l'échauffement à l'extrémité pour les conducteurs courts.",
+        [{l:"Isolé, extrémité dénudée",v:"insul"},{l:"Isolation épaisse ou double",v:"thick"},
+         {l:"Conducteur nu",v:"bare"},{l:"Inconnue",v:"unknown"}]),
+      Q("multi",`Conducteurs multiples, croisés, ou en boucle (${devShort()})`,"Plusieurs sondes, mailles, treillis, ou boucle fermée susceptible d'entrer en résonance.",
+        [{l:"Non — conducteur unique",v:"no"},{l:"Oui — multiples ou croisés",v:"multi"},
+         {l:"Oui — boucle fermée",v:"loop"},{l:"Inconnu",v:"unknown"}]),
+      Q("sink","Un dissipateur thermique peut-il être mis en place ?",
+        "Compresse froide ou poche de gel au contact du point d'échauffement attendu, notamment l'extrémité dénudée.",
+        [{l:"Oui",v:"yes"},{l:"Non",v:"no"}],true)
+    ];
+    if(S.linear==="yes"&&e<2) qs.unshift(Q("pathIn",
+      `Le trajet du conducteur atteint-il le volume d'émission ?`,
+      `Déterminant, et la géométrie ne peut pas y répondre seule. Une sonde de stimulateur cardiaque descend vers le cœur, donc s'éloigne d'une antenne tête. Une extension de neurostimulateur profond remonte vers le crâne, donc y entre. Un cathéter de pompe abdominale remonte le rachis. Le corps du dispositif peut être hors du volume alors que le conducteur y plonge.`,
+      [{l:"Non — le conducteur s'éloigne du volume d'émission",v:"no"},
+       {l:"Oui — une partie du trajet y entre",v:"yes"},
+       {l:"Trajet non déterminé",v:"unknown"}]));
+    if(S.tattoo){
+      qs.push(Q("tattooAge","Ancienneté du tatouage","Les encres anciennes contiennent plus fréquemment des composés métalliques.",
+        [{l:"Moins de 6 semaines",v:"new",t:"cicatrisation"},{l:"Ancien, cicatrisé",v:"old"},{l:"Inconnue",v:"unknown"}],true));
+      qs.push(Q("tattooSize","Étendue du tatouage","",
+        [{l:"Petit",v:"small"},{l:"Étendu",v:"large",t:"surveillance"}],true));
+    }
+    this.qs=qs;
+    const pos=e===2?"dans le volume d'émission":e===1?(localCoil()?"hors du volume d'émission, mais assez près pour qu'un conducteur allongé puisse l'atteindre":"juste au-delà de l'antenne, dans la zone où le champ décroît sans s'annuler"):"hors du volume d'émission";
+    const rad=rl===2?" Sa latéralisation le place près de la paroi, où le champ électrique induit est le plus fort — facteur dominant de l'échauffement.":rl===1?" Sa position latérale est intermédiaire.":" Sa position centrale réduit le champ électrique induit.";
+    return `<h2>Radiofréquence <em>B1</em></h2>
+    <div class="sub">Ce n'est pas le champ B1 qui échauffe, mais les champs électriques qu'il induit. Deux situations à distinguer : le champ de l'antenne corps décroît au-delà de l'antenne sans s'annuler, alors qu'une antenne locale blindée le confine. Dans ce second cas, ce qui franchit la frontière n'est pas le champ mais le conducteur — une sonde dont une partie baigne dans le volume peut concentrer l'énergie à son extrémité, même très loin de là.</div>
+    <div class="note"><strong>${HYP.land[S.imp].n} à ${Math.round(Math.abs(b))} cm de l'isocentre : ${pos} (${COIL[S.coil].toLowerCase()}, ${rfLen()} cm).</strong>${rad} Repère : à ${MAG[S.B]}, la longueur résonante dans l'air est de ${F.Lair} ; en tissu elle est très nettement raccourcie par la permittivité du milieu.</div>
+    <div class="eyebrow">Antenne d'émission — ce que chaque option change</div>
+    <div class="cmp" id="cmp">${coilCompare()}</div>
+    <div class="fh" style="margin:8px 0 0">Le choix de l'antenne d'émission appartient au TRM lorsque plusieurs sont disponibles. Sélectionner une option recalcule l'analyse. Ne retenir une antenne émettrice-réceptrice que si le matériel est réellement présent et utilisable pour cet examen.</div>
+    ${helpCoil()}
+    ${qs.map(q=>q.html).join("")}
+    <div class="actions"><button class="act" id="next"${this.ready()?"":" disabled"}>Voir la synthèse</button></div>`;
+  },
+  bind(){
+    bindAll(this.qs);
+    document.querySelectorAll(".cmpo").forEach(btn=>btn.onclick=()=>{
+      if(btn.dataset.c===S.coil) return;
+      S.coil=btn.dataset.c; log("Antenne d'émission",COIL[S.coil]);
+      go(8);
+    });
+  },
+  ready(){
+    let b=S.len&&S.insul&&S.multi&&S.sink;
+    if(S.linear==="yes"&&expo("B1")<2&&!S.pathIn) b=false;
+    return S.tattoo?(b&&S.tattooAge&&S.tattooSize):!!b;
+  },
+  score(){
+    const w=[]; if(S.cond==="no") return [{i:3,s:0,w:["Matériau non conducteur : pas de couplage radiofréquence."]}];
+    let e=expo("B1"); const rl=radialLevel(), F=FREQ[S.B];
+    /* Le trajet du conducteur prime sur la position du boîtier : c'est lui qui
+       décide s'il y a couplage, pas la géométrie du dispositif. */
+    if(S.linear==="yes"&&e<2){
+      if(S.pathIn==="yes"){ e=2; w.push("Le trajet du conducteur atteint le volume d'émission : le couplage a lieu, même si le corps du dispositif est en dehors."); }
+      else if(S.pathIn==="unknown"){ e=Math.max(e,1); w.push("Trajet du conducteur non déterminé : couplage non écarté."); }
+      else if(localCoil()){ e=0; w.push("Le trajet du conducteur s'éloigne du volume d'émission, et le champ d'une antenne locale blindée ne déborde pas."); }
+      else w.push("Le trajet du conducteur n'atteint pas le cœur du volume d'émission, mais le champ de l'antenne corps décroît sans s'annuler.");
+    }
+    if(e===0) return [{i:3,s:0,w:[...w,
+      `Aucune partie du dispositif n'est exposée au champ d'émission (${COIL[S.coil].toLowerCase()}, ${rfLen()} cm) : pas de couplage radiofréquence.`]}];
+    let s;
+    if(S.len==="resonant"){ s=3; w.push(`Longueur proche de la longueur résonante à ${MAG[S.B]} (${F.Lr} cm).`); }
+    else if(S.len==="unknown"){ s=2; w.push("Longueur conductrice inconnue : résonance non écartée."); }
+    else if(S.len==="long"){ s=2; w.push("Longueur au-delà de la résonance fondamentale : la résonance étant périodique, un harmonique ne peut être écarté sans mesure."); }
+    else { s=1; w.push("Longueur nettement inférieure à la résonance."); }
+    if(rl===2){ s+=2; w.push("Trajet périphérique : couplage maximal avec le champ électrique induit."); }
+    else if(rl===1){ s+=1; w.push("Position latérale intermédiaire."); }
+    else w.push("Trajet central : champ électrique induit plus faible.");
+    if(S.insul==="thick"){ s-=1; w.push("Isolation épaisse : échauffement d'extrémité réduit."); }
+    else if(S.insul==="bare"){ s+=1; w.push("Conducteur nu."); }
+    if(S.multi==="multi"){ s+=1; w.push("Conducteurs multiples ou croisés."); }
+    else if(S.multi==="loop"){ s+=1; w.push("Boucle fermée : résonance de boucle possible."); }
+    else if(S.multi==="unknown"){ s+=1; w.push("Configuration des conducteurs non établie."); }
+    if(e===1){ s-=1; w.push("Couplage partiel avec le volume d'émission."); }
+    else w.push(`Couplage avec le volume d'émission (${COIL[S.coil].toLowerCase()}, ${rfLen()} cm).`);
+    if(S.linear!=="yes"){ s-=1; w.push("Dispositif compact : pas d'effet d'antenne."); }
+    if(S.tattoo){
+      s-=1; w.push("Tatouage traité comme implant passif conducteur, avec un niveau réduit d'un cran.");
+      if(S.tattooAge==="new"){ s+=1; w.push("Tatouage récent, non cicatrisé."); }
+      if(S.tattooSize==="large"&&e>0){ s+=1; w.push("Tatouage étendu dans le volume d'émission."); }
+      S.mitig.push(["Surveillance du tatouage","Informer le patient de signaler immédiatement toute sensation de chaleur. Compresse froide sur la zone si étendue ou récente."]);
+    }
+    if(s>=2){
+      if(S.sink==="yes"){ s-=1; S.mitig.push(["Dissipateur thermique","Placer une compresse froide au contact du point d'échauffement attendu, notamment l'extrémité dénudée du conducteur."]); }
+      S.mitig.push(["Surveillance active","Maintenir le contact verbal. Faire signaler immédiatement toute sensation de chaleur, de picotement ou de brûlure. Réduire le SAR autant que l'indication le permet."]);
+    }
+    return [{i:3,s:clamp(s),w}];
+  }
+};
+
+/* Disponibilité. Sans statusUrl, on annonce un délai de réponse plutôt qu'une
+   présence : un point vert sur un outil de sécurité promet une disponibilité
+   qu'un fichier local ne peut pas garantir. */
+const ETATS={
+  ligne:{c:"--r0",t:"En ligne"},
+  recent:{c:"--r2",t:"Connecté récemment"},
+  hors:{c:"--r4",t:"Hors ligne"}
+};
+function showDot(c,t){ const d=$("dot"); if(d) d.innerHTML=`<i style="background:var(${c})"></i><span>${t}</span>`; }
+function setDot(){
+  if(!CONTACT.statusUrl){ showDot("--line-2",`Réponse sous ${CONTACT.delai}`); return; }
+  showDot("--line-2","Vérification…");
+  fetch(CONTACT.statusUrl,{cache:"no-store"})
+    .then(r=>r.ok?r.json():Promise.reject())
+    .then(j=>{ const e=ETATS[j&&j.etat]; e?showDot(e.c,e.t):showDot("--line-2",`Réponse sous ${CONTACT.delai}`); })
+    .catch(()=>showDot("--line-2",`Réponse sous ${CONTACT.delai}`));
+}
+
+/* 9 — synthèse */
+function dedupe(a){ const s=new Set(); return a.filter(m=>s.has(m[0])?false:(s.add(m[0]),true)); }
+STEPS[9]={
+  render(){
+    const max=Math.max(...S.scores), worst=FIELDS[S.scores.indexOf(max)], sc=SCALE[max];
+    const msg=[
+      "Aucun facteur de risque non résolu n'a été identifié sur les quatre champs. Documenter l'analyse dans le dossier du patient.",
+      "Les facteurs identifiés restent limités et pour l'essentiel maîtrisables par les mesures listées ci-dessous. À porter à la connaissance du médecin radiologue responsable.",
+      "Des facteurs de risque significatifs ont été identifiés. Présenter cette analyse au médecin radiologue responsable de l'IRM avec les mesures d'atténuation envisagées, avant toute installation du patient.",
+      "Le niveau de risque estimé est élevé sur au moins un champ. Cette analyse doit être discutée avec le médecin radiologue responsable de l'IRM avant toute décision, avec mise en balance explicite du bénéfice attendu et examen des alternatives d'imagerie.",
+      "Le niveau de risque estimé est majeur, ou des éléments déterminants restent non résolus. Ne pas poursuivre sans décision explicite du médecin radiologue responsable de l'IRM. Le recours à un expert en sécurité IRM est recommandé, notamment si l'incertitude porte sur l'identification du dispositif."
+    ][max];
+    const unk=S.trace.filter(t=>/inconnu|non détermin|non retrouv|non vérifiab|non identifi/i.test(t[1]));
+    return `<h2>Synthèse de l'analyse</h2>
+    <div class="sub">Le niveau global retenu est le plus élevé des quatre champs. Un seul mécanisme suffit à porter le risque.</div>
+    <div class="verdict" style="background:var(${sc.bg});border-color:var(${sc.c})">
+      <div class="verdict-k" style="color:var(${sc.c})">Niveau ${max} sur 4 · déterminé par ${worst.k}</div>
+      <div class="verdict-t" style="color:var(${sc.c})">${sc.n}</div>
+      <div class="verdict-b" style="color:var(${sc.c})">${msg}</div></div>
+    <div class="scale">${SCALE.map((x,i)=>`<div style="color:var(${x.c});${i===max?`background:var(${x.bg});font-weight:600`:""}">${i} · ${x.s}</div>`).join("")}</div>
+    <div class="eyebrow">Configuration analysée</div>
+    <div class="note"><strong>${MAG[S.B]} · ${HYP.exams[S.ex].n} · ${POS[S.pos]}, ${ENT[S.ent].toLowerCase()} · patient de ${S.h} cm.</strong>
+      ${COIL[S.coil]} en émission (${rfLen()} cm). Dispositif en ${HYP.land[S.imp].n.toLowerCase()}, ${HYP.lat[S.lat].n.toLowerCase()}, à ${Math.round(Math.abs(bOf(S.imp)))} cm de l'isocentre.</div>
+    <div class="eyebrow">Détail par champ</div>
+    <div class="read">${FIELDS.map((f,i)=>`<div class="rc">
+      <div class="rc-k">${f.k} · ${f.risk}</div><div class="rc-n">${f.n}</div>
+      <div class="rc-v" style="color:var(${SCALE[S.scores[i]].c})">${S.scores[i]} · ${SCALE[S.scores[i]].n}</div>
+      ${S.detail[i].length?`<div class="rc-w">${S.detail[i].join(" ")}</div>`:""}</div>`).join("")}</div>
+    ${S.mitig.length?`<div class="eyebrow">Mesures d'atténuation retenues</div>
+      ${dedupe(S.mitig).map(m=>`<div class="mit"><div class="mit-k">${m[0]}</div><div class="mit-b">${m[1]}</div></div>`).join("")}`:""}
+    ${unk.length?`<div class="note" style="border-left:3px solid var(--r2)"><strong>${unk.length} élément${unk.length>1?"s":""} non résolu${unk.length>1?"s":""}.</strong> Chaque inconnue a été traitée par précaution dans le sens le plus restrictif. Lever ces incertitudes ferait probablement évoluer l'analyse.</div>`:""}
+    <div class="note">Cet outil ne décide pas. La décision de réaliser ou non l'examen revient au médecin radiologue responsable de l'IRM, qui met le risque estimé en balance avec le bénéfice attendu au vu de l'ensemble du contexte clinique. Si le patient porte plusieurs dispositifs, reprendre une analyse complète pour chacun, puis considérer le risque cumulé.</div>
+    <div class="eyebrow">Trajet de l'analyse</div>
+    <div class="trace">${S.trace.map(t=>`<b>${t[0].replace(/\s*\?$/,"")}</b> — ${t[1]}<br>`).join("")}</div>
+    <div class="expert">
+      <div class="expert-h">
+        <div><div class="expert-t">Un second regard sur un cas complexe</div>
+          <div class="expert-s">Expert en sécurité IRM · ${CONTACT.titre.split(" · ")[1]||CONTACT.titre}</div></div>
+        <div class="dot" id="dot"><i></i><span>Vérification…</span></div>
+      </div>
+      <p class="expert-b">Cet outil ne couvre pas toutes les configurations : dispositifs multiples, mailles et treillis, géométries inhabituelles, matériel non identifié. Si votre cas sort du cadre, ou si vous voulez confronter cette analyse à un avis d'expert en sécurité IRM, vous pouvez la lui adresser avec son contexte.</p>
+      <p class="expert-w"><strong>Ce n'est pas un canal d'urgence.</strong> N'attendez pas de réponse pour décider : la décision revient au médecin radiologue responsable de l'IRM, maintenant comme après.</p>
+      <div class="actions" style="margin-top:16px;padding-top:0;border:none">
+        <button class="act" id="mail">Envoyer ce cas à un expert</button>
+        <button class="gh" id="cascopy">Copier le résumé du cas</button></div>
+      <p class="expert-w" style="margin-top:14px">Si le bouton n'ouvre pas votre messagerie — poste sans client de messagerie configuré — copiez le résumé et envoyez-le à ${CONTACT.email?`<span class="mono-sel">${CONTACT.email}</span>`:"l'adresse de contact"}.</p>
+    </div>
+    <div class="actions"><button class="act" id="copy">Copier pour le dossier</button>
+      <button class="gh" id="incident">Déclarer un incident</button>
+      <button class="gh" id="restart">Nouvelle analyse</button>
+      <button class="gh" id="uhome">Accueil</button></div>`;
+  },
+  bind(){
+    $("restart").onclick=()=>{ reset(); go(0); };
+    $("uhome").onclick=goHome;
+    setDot();
+    const resume=()=>{
+      const max=Math.max(...S.scores);
+      return [
+        "Bonjour,","",
+        "Analyse réalisée avec l'outil de sécurité IRM. Contexte :","",
+        `Aimant : ${MAG[S.B]} · Émission : ${COIL[S.coil]} (${rfLen()} cm)`,
+        `Examen : ${HYP.exams[S.ex].n} · ${POS[S.pos]}, ${ENT[S.ent].toLowerCase()} · patient de ${S.h} cm`,
+        `Dispositif : ${devShort()} en ${HYP.land[S.imp].n.toLowerCase()}, ${HYP.lat[S.lat].n.toLowerCase()} — ${Math.round(Math.abs(bOf(S.imp)))} cm de l'isocentre`,"",
+        `Niveau global : ${max}/4 — ${SCALE[max].n}`,
+        ...FIELDS.map((f,i)=>`  ${f.k} : ${S.scores[i]}/4 — ${SCALE[S.scores[i]].n}`),"",
+        "Ma question :","","",
+        "— Le trajet détaillé de l'analyse peut être copié depuis l'outil et collé ici."
+      ].join("\n");
+    };
+    $("mail").onclick=()=>{
+      const max=Math.max(...S.scores);
+      if(!CONTACT.email){ alert("Aucune adresse de contact n'est configurée dans ce fichier. Utilisez « Copier le résumé du cas »."); return; }
+      window.location.href=`mailto:${CONTACT.email}?subject=${encodeURIComponent(`Sécurité IRM — ${devShort()}, niveau ${max}/4`)}&body=${encodeURIComponent(resume())}`;
+    };
+    $("cascopy").onclick=()=>{
+      navigator.clipboard.writeText(resume()).then(()=>{
+        $("cascopy").textContent="Résumé copié";
+        setTimeout(()=>$("cascopy").textContent="Copier le résumé du cas",1800);
+      }).catch(()=>{ $("cascopy").textContent="Copie impossible"; });
+    };
+    $("incident").onclick=()=>goIncident(resume());
+    $("copy").onclick=()=>{
+      const max=Math.max(...S.scores);
+      const t=["ANALYSE DE RISQUE — IMPLANT EN IRM",new Date().toLocaleString("fr-CH"),"",
+        `Aimant : ${MAG[S.B]} · Émission : ${COIL[S.coil]} (${rfLen()} cm)`,
+        `Examen : ${HYP.exams[S.ex].n} · ${POS[S.pos]}, ${ENT[S.ent].toLowerCase()}`,
+        `Patient : ${S.h} cm`,
+        `Dispositif : ${HYP.land[S.imp].n}, ${HYP.lat[S.lat].n.toLowerCase()} — ${Math.round(Math.abs(bOf(S.imp)))} cm de l'isocentre`,"",
+        `NIVEAU GLOBAL : ${max}/4 — ${SCALE[max].n}`,
+        ...FIELDS.map((f,i)=>`  ${f.k} : ${S.scores[i]}/4 — ${SCALE[S.scores[i]].n}`),"",
+        "MESURES D'ATTÉNUATION",
+        ...(S.mitig.length?dedupe(S.mitig).map(m=>`  · ${m[0]} : ${m[1]}`):["  aucune"]),"",
+        "TRAJET",...S.trace.map(x=>`  ${x[0].replace(/\s*\?$/,"")} — ${x[1]}`),"",
+        "Analyse structurée à titre documentaire. Ne constitue pas une décision médicale.",
+        "Décision finale : médecin radiologue responsable de l'IRM."].join("\n");
+      navigator.clipboard.writeText(t).then(()=>{
+        $("copy").textContent="Copié"; setTimeout(()=>$("copy").textContent="Copier pour le dossier",1800);
+      }).catch(()=>{ $("copy").textContent="Copie impossible"; });
+    };
+  },
+  ready:()=>true
+};
+
+/* ══════════════════════════════════════════════════════════════
+   SOURCES ET NIVEAU DE PREUVE
+   Visible depuis n'importe quel écran. La troisième colonne est la
+   plus importante : elle sépare ce qui est sourcé de ce qui est
+   extrapolé ou conventionnel.
+   ══════════════════════════════════════════════════════════════ */
+const ST_={
+  norme:["Norme","--r0"], publie:["Article publié","--r0"], mesure:["Mesure expérimentale","--r0"],
+  ref:["Référence professionnelle","--r0"], local:["Mesure locale","--ink-3"],
+  approx:["Approximation","--r2"], extrap:["Extrapolation non validée","--r2"],
+  nonval:["Non validé","--r2"], conv:["Convention de l'outil","--r2"]
+};
+const SOURCES=[
+ ["Classification MR Safe, MR Conditional, MR Unsafe","ASTM F2503","norme"],
+ ["Symboles apposés sur les antennes indiquant leur fonction d'émission ou de réception","IEC 60417 (symbole 6192 : RF coil, transmit and receive)","norme"],
+ ["Zones I à IV, principes de screening, rôle du médecin responsable","ACR Manual on MR Safety","ref"],
+ ["Limites d'exposition de l'équipement (B0, dB/dt, SAR)","CEI 60601-2-33","norme"],
+ ["Analyse séparée par source d'énergie ; distribution spatiale non homogène ; le lieu de risque maximal peut être très éloigné de l'anatomie explorée","Kanal 2020","publie"],
+ ["Pic de dB/dt supéro-inférieur vers 35 cm au-dessus et en dessous de l'isocentre","Kanal 2020","publie"],
+ ["Gradient spatial proche de zéro à l'isocentre, maximal aux extrémités du tunnel","Kanal 2020","publie"],
+ ["Effet d'antenne : longueur résonante d'environ 25 cm à 1,5 T ; pic mesuré à 13,5 °C, contre 0,8 °C pour un fil de 40 cm","Mattei 2008","mesure"],
+ ["La position dans le corps domine la longueur : plus de 30 °C près du bord du fantôme contre moins de 8 °C en position centrale","Mattei 2008","mesure"],
+ ["Longueur d'onde raccourcie d'environ un facteur 12 en milieu salin par rapport à l'air","Mattei 2008","mesure"],
+ ["Longueurs résonantes dans l'air par intensité de champ","Dempsey 2001","publie"],
+ ["Une boucle conductrice simple échauffe peu (0,6 °C) ; la boucle résonante (61,1 °C) et l'antenne résonante (63,5 °C) sont les mécanismes de brûlure","Dempsey 2001","publie"],
+ ["Antenne corps de 60 cm de longueur ; tunnel de 70 cm de diamètre","Mesure directe, Philips Ingenia 1,5 T","local"],
+ ["Longueurs résonantes à 0,5 · 1 · 3 · 7 T","Mise à l'échelle inverse de la fréquence depuis le repère 1,5 T","extrap"],
+ ["Volume d'émission de l'antenne tête émission-réception","Boîtier mesuré, antenne 8 canaux, Philips Ingenia 1,5 T","local"],
+ ["Le champ de vue prescrit ne borne pas la zone exposée : l'antenne corps émet dans tout son volume, la sélectivité de coupe venant du gradient et non d'une restriction de l'émission","Principe d'imagerie","ref"],
+ ["Décroissance du champ de l'antenne corps sur 15 cm au-delà de sa longueur physique","Estimation de l'outil","approx"],
+ ["Volume d'émission de l'antenne genou émission-réception","Valeur par défaut de l'outil ; absente du parc de référence","nonval"],
+ ["Repères anatomiques exprimés en fraction de la taille","Anthropométrie standard","approx"],
+ ["Bandes d'exposition des vues sagittale et coronale","Formes schématiques dérivées de la physique publiée","approx"],
+ ["Seuils de score, pondérations et niveau global retenu comme maximum des quatre champs","Construction propre à cet outil","conv"]
+];
+const REFS=[
+ `Kanal E. <em>Standardized approaches to MR safety assessment of patients with implanted devices.</em> Magn Reson Imaging Clin N Am 2020;28:537–548. doi:10.1016/j.mric.2020.07.003`,
+ `Mattei E, Triventi M, Calcagnini G, Censi F, Kainz W, Mendoza G, Bassen HI, Bartolini P. <em>Complexity of MRI induced heating on metallic leads: experimental measurements of 374 configurations.</em> BioMed Eng OnLine 2008;7:11. doi:10.1186/1475-925X-7-11`,
+ `Dempsey MF, Condon B, Hadley DM. <em>Investigation of the factors responsible for burns during MRI.</em> J Magn Reson Imaging 2001;13:627–631.`,
+ `American College of Radiology. <em>ACR Manual on MR Safety.</em>`,
+ `ASTM F2503. <em>Standard practice for marking medical devices and other items for safety in the magnetic resonance environment.</em>`,
+ `CEI 60601-2-33. <em>Exigences particulières pour la sécurité de base et les performances essentielles des appareils à résonance magnétique.</em>`,
+ `IEC 60417. <em>Symboles graphiques utilisables sur le matériel.</em> Symbole 6192 : RF coil, transmit and receive.`
+];
+function drawSources(){
+  $("srcs").innerHTML=`<details><summary>Sources et niveau de preuve</summary><div class="dbody">
+  <p style="margin-bottom:6px">La troisième colonne indique d'où vient chaque affirmation. Tout ce qui est marqué comme extrapolé, approximatif ou conventionnel n'est pas sourcé : ce sont des choix de construction, à valider avant tout usage engageant.</p>
+  <table class="srct"><thead><tr><th>Ce que l'outil affirme</th><th>Origine</th><th>Statut</th></tr></thead><tbody>
+  ${SOURCES.map(([c,s,t])=>{const[n,col]=ST_[t];
+    return `<tr><td>${c}</td><td>${s}</td><td><span class="st" style="color:var(${col});border-color:var(${col})">${n}</span></td></tr>`;}).join("")}
+  </tbody></table>
+  <ul class="refs">${REFS.map(r=>`<li>· ${r}</li>`).join("")}</ul>
+  <p style="margin-top:16px;color:var(--ink-3)">Cet outil ne reproduit ni ne diffuse le diagramme d'enseignement du Dr Kanal. Son architecture a été reconstruite indépendamment à partir des sources primaires listées ci-dessus.</p>
+  </div></details>`;
+}
+
+function go(n){
+  while(STEPS[n]&&STEPS[n].skip&&STEPS[n].skip()) n++;
+  VIEW="expert";
+  S.step=n;
+  $("main").innerHTML=STEPS[n].render();
+  drawFields();
+  drawSources();
+  STEPS[n].bind&&STEPS[n].bind();
+  const nx=$("next");
+  if(nx){
+    nx.disabled=!STEPS[n].ready();
+    nx.onclick=()=>{
+      STEPS[n].done&&STEPS[n].done();
+      if(STEPS[n].score) STEPS[n].score().forEach(r=>{ S.scores[r.i]=r.s; S.detail[r.i]=r.w; });
+      if(n===2&&S.label==="safe"){
+        S.scores=[0,0,0,0];
+        S.detail=[0,1,2,3].map(()=>["Étiquetage MR Safe vérifié."]);
+        S.mitig.push(["Documentation","Consigner la vérification de l'étiquetage MR Safe dans le dossier du patient."]);
+        return go(9);
+      }
+      if(n===2&&S.label==="unsafe"){
+        S.scores=[4,4,4,4];
+        S.detail=[0,1,2,3].map(()=>["Étiquetage MR Unsafe : dispositif explicitement contre-indiqué en environnement IRM."]);
+        S.mitig.push(["Documentation","Consigner l'étiquetage MR Unsafe et la décision du médecin radiologue responsable de l'IRM dans le dossier du patient."]);
+        return go(9);
+      }
+      go(n+1);
+    };
+  }
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function startExpert(){ reset(); go(0); }
+
+/* ══════════════════════════════════════════════════════════════
+   ACCUEIL — point d'entrée. Choix du mode, jamais mémorisé.
+   ══════════════════════════════════════════════════════════════ */
+function renderHome(){
+  return `<h2>Sécurité IRM — implants et dispositifs</h2>
+  <div class="sub">Choisissez le mode adapté à votre situation. Aucun des deux modes d'analyse ne rend de verdict : la décision de réaliser l'examen revient toujours au médecin radiologue responsable de l'IRM.</div>
+  <div class="eyebrow">Analyse de risque</div>
+  <div class="cmp" id="home-modes">
+    <button type="button" class="cmpo" data-go="urgence">
+      <span class="cmpo-l">Mode urgence</span>
+      <span class="cmpo-n">Patient seul, décision à prendre vite. 5 à 7 questions accessibles sans documentation technique, une orientation immédiate.</span>
+      <span class="cmpo-d">≈ 2 MIN</span></button>
+    <button type="button" class="cmpo" data-go="expert">
+      <span class="cmpo-l">Analyse complète</span>
+      <span class="cmpo-n">Analyse détaillée des quatre mécanismes physiques (B0, dB/dx, dB/dt, B1), avec sources et trajet documenté.</span>
+      <span class="cmpo-d">≈ 10 MIN</span></button>
+  </div>
+  <div class="eyebrow">Autres services</div>
+  <div class="cmp" id="home-other">
+    <button type="button" class="cmpo" data-go="incident">
+      <span class="cmpo-l">Déclarer un incident</span>
+      <span class="cmpo-n">Prépare un résumé à partir d'une analyse déjà faite et redirige vers le registre officiel de l'ASTRM.</span>
+      <span class="cmpo-d">ASTRM.CH</span></button>
+    <button type="button" class="cmpo" data-go="formation">
+      <span class="cmpo-l">Formation &amp; consulting</span>
+      <span class="cmpo-n">Formation sur site ou à distance, conseil en sécurité IRM pour un service ou une équipe.</span>
+      <span class="cmpo-d">SUR DEVIS</span></button>
+  </div>
+  <div class="note" style="margin-top:24px">Un avis d'expert ou une question ponctuelle ? <a href="#" id="home-contact" style="color:var(--ink)">Contacter un expert</a>.</div>`;
+}
+function bindHome(){
+  document.querySelectorAll("#home-modes .cmpo,#home-other .cmpo").forEach(b=>{
+    b.onclick=()=>{
+      const t=b.dataset.go;
+      if(t==="urgence"){ resetU(); goU(0); }
+      else if(t==="expert") startExpert();
+      else if(t==="incident") goIncident();
+      else if(t==="formation") goFormation();
+    };
+  });
+  const hc=$("home-contact"); if(hc) hc.onclick=e=>{ e.preventDefault(); goContact(); };
+}
+function goHome(){
+  VIEW="home"; $("fields").innerHTML=""; $("srcs").innerHTML="";
+  $("main").innerHTML=renderHome(); bindHome();
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function goContact(){
+  VIEW="contact"; $("fields").innerHTML=""; $("srcs").innerHTML="";
+  $("main").innerHTML=`<h2>Contacter un expert</h2>
+  <div class="sub">Expert en sécurité IRM (${CONTACT.titre}). Pour un avis ponctuel, une question de sécurité IRM, ou toute remarque sur cet outil.</div>
+  <div class="note"><strong>Ce n'est pas un canal d'urgence.</strong> N'attendez pas de réponse pour décider : la décision d'examen revient au médecin radiologue responsable de l'IRM, maintenant comme après.</div>
+  <div class="actions">
+    <button class="act" id="ctmail">Écrire un message</button>
+    <button class="gh" id="uhome">Accueil</button>
+  </div>`;
+  $("ctmail").onclick=()=>{
+    if(!CONTACT.email){ alert("Aucune adresse de contact n'est configurée dans ce fichier pour le moment."); return; }
+    window.location.href=`mailto:${CONTACT.email}?subject=${encodeURIComponent("Sécurité IRM — contact")}`;
+  };
+  $("uhome").onclick=goHome;
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MODE URGENCE
+   État séparé de S : ce mode ne calcule pas les quatre champs, il
+   produit une orientation d'action à partir d'une heuristique de
+   mécanisme dominant. Les questions sont répondables sans
+   documentation technique du dispositif.
+   ══════════════════════════════════════════════════════════════ */
+let U={};
+function resetU(){ U={step:0,ident:null,compat:null,nature:null,loc:null,taille:null,prox:null,mobile:null}; }
+resetU();
+const U_LOC={
+  oeil:"Œil / orbite", vaisseau:"Vaisseau sanguin (stent, valve, FOP…)",
+  os:"Os", nerf:"Tissu mou, à proximité d'un trajet nerveux",
+  poumon:"Poumon / cavité thoracique", autre:"Autre / je ne sais pas"
+};
+let QUC=0;
+function QU(key,label,hint,opts){
+  const id="qu"+(++QUC);
+  return {id,key,label,opts,html:`<div class="q"><div class="q-l">${label}</div>
+    ${hint?`<div class="q-h">${hint}</div>`:""}
+    <div class="opts" id="${id}">${opts.map((o,i)=>
+      `<button type="button" class="opt${U[key]===o.v?" on":""}" data-i="${i}">${o.l}</button>`
+    ).join("")}</div></div>`};
+}
+function bindQU(q){
+  const box=$(q.id); if(!box) return;
+  box.querySelectorAll(".opt").forEach(b=>{
+    b.onclick=()=>{
+      box.querySelectorAll(".opt").forEach(x=>x.classList.remove("on"));
+      b.classList.add("on");
+      const o=q.opts[+b.dataset.i];
+      U[q.key]=o.v;
+      const n=$("unext"); if(n) n.disabled=!USTEPS[U.step].ready();
+    };
+  });
+}
+
+const USTEPS=[];
+USTEPS[0]={
+  render(){
+    this.qs=[QU("ident","Identification du dispositif","",[
+      {l:"Connu, documentation disponible (carte implant, notice)",v:"connu_doc"},
+      {l:"Connu, mais sans documentation sous la main",v:"connu_nodoc"},
+      {l:"Inconnu — corps étranger ou dispositif non identifié",v:"inconnu"}])];
+    return `<h2>Mode urgence <em>1 / 7</em></h2>
+    <div class="sub">Répondez avec ce que vous avez sous la main maintenant — dossier, imagerie antérieure, observation directe. Pas besoin de documentation technique du dispositif.</div>
+    ${this.qs.map(q=>q.html).join("")}
+    <div class="actions"><button class="act" id="unext" disabled>Suivant</button>
+      <button class="gh" id="uhome">Accueil</button></div>`;
+  },
+  bind(){ bindQU(this.qs[0]); $("uhome").onclick=goHome; },
+  ready:()=>!!U.ident
+};
+USTEPS[1]={
+  skip:()=>U.ident==="inconnu",
+  render(){
+    this.qs=[QU("compat","Compatibilité indiquée","D'après la carte, la notice, ou le dossier patient.",[
+      {l:"Conditionnelle, avec conditions précises (champ, antenne, débit d'absorption…)",v:"conditionnel_precis"},
+      {l:"Conditionnelle, mais conditions imprécises ou lecture incertaine",v:"conditionnel_flou"},
+      {l:"Non compatible IRM",v:"non_compatible"},
+      {l:"Pas de documentation disponible",v:"pas_doc"}])];
+    return `<h2>Mode urgence <em>2 / 7</em></h2>
+    ${this.qs.map(q=>q.html).join("")}
+    <div class="actions"><button class="act" id="unext" disabled>Suivant</button>
+      <button class="gh" id="uprev">Précédent</button></div>`;
+  },
+  bind(){ bindQU(this.qs[0]); $("uprev").onclick=()=>goU(0); },
+  ready:()=>!!U.compat
+};
+USTEPS[2]={
+  render(){
+    this.qs=[QU("nature","Nature du dispositif","",[
+      {l:"Actif — possède une batterie",v:"actif"},
+      {l:"Passif — fonction mécanique, sans batterie",v:"passif"},
+      {l:"Je ne sais pas",v:"inconnue"}])];
+    return `<h2>Mode urgence <em>3 / 7</em></h2>
+    ${this.qs.map(q=>q.html).join("")}
+    <div class="actions"><button class="act" id="unext" disabled>Suivant</button>
+      <button class="gh" id="uprev">Précédent</button></div>`;
+  },
+  bind(){ bindQU(this.qs[0]); $("uprev").onclick=()=>goU(U.ident==="inconnu"?0:1); },
+  ready:()=>!!U.nature
+};
+USTEPS[3]={
+  render(){
+    this.qs=[QU("loc","Localisation du matériel","Détermine surtout le risque de déplacement (missile) et d'échauffement.",[
+      {l:"Œil / orbite",v:"oeil"},
+      {l:"Vaisseau sanguin (stent, valve, FOP…)",v:"vaisseau"},
+      {l:"Os",v:"os"},
+      {l:"Tissu mou, à proximité d'un trajet nerveux",v:"nerf"},
+      {l:"Poumon / cavité thoracique",v:"poumon"},
+      {l:"Autre / je ne sais pas",v:"autre"}])];
+    return `<h2>Mode urgence <em>4 / 7</em></h2>
+    ${this.qs.map(q=>q.html).join("")}
+    <div class="actions"><button class="act" id="unext" disabled>Suivant</button>
+      <button class="gh" id="uprev">Précédent</button></div>`;
+  },
+  bind(){ bindQU(this.qs[0]); $("uprev").onclick=()=>goU(2); },
+  ready:()=>!!U.loc
+};
+USTEPS[4]={
+  skip:()=>!(U.ident==="inconnu"||U.nature==="inconnue"),
+  render(){
+    this.qs=[QU("taille","Taille approximative","",[
+      {l:"Petit (< 1 cm — clip, agrafe, éclat)",v:"petit"},
+      {l:"Moyen (1 à 5 cm — vis, stent)",v:"moyen"},
+      {l:"Grand (> 5 cm — plaque, prothèse)",v:"grand"},
+      {l:"Je ne sais pas",v:"inconnue"}])];
+    return `<h2>Mode urgence <em>5 / 7</em></h2>
+    ${this.qs.map(q=>q.html).join("")}
+    <div class="actions"><button class="act" id="unext" disabled>Suivant</button>
+      <button class="gh" id="uprev">Précédent</button></div>`;
+  },
+  bind(){ bindQU(this.qs[0]); $("uprev").onclick=()=>goU(3); },
+  ready:()=>!!U.taille
+};
+USTEPS[5]={
+  render(){
+    this.qs=[QU("prox","Proximité avec la zone examinée","",[
+      {l:"Le dispositif (ou son câblage) est dans la zone examinée ou à proximité immédiate",v:"oui"},
+      {l:"Clairement à distance de la zone examinée",v:"non"},
+      {l:"Je ne suis pas sûr·e",v:"incertain"}])];
+    return `<h2>Mode urgence <em>6 / 7</em></h2>
+    ${this.qs.map(q=>q.html).join("")}
+    <div class="actions"><button class="act" id="unext" disabled>Suivant</button>
+      <button class="gh" id="uprev">Précédent</button></div>`;
+  },
+  bind(){ bindQU(this.qs[0]); $("uprev").onclick=()=>goU(4); },
+  ready:()=>!!U.prox
+};
+USTEPS[6]={
+  render(){
+    this.qs=[QU("mobile","Ancienneté / fixité","Objectivable via le dossier ou l'imagerie, sans que le patient ait besoin de répondre.",[
+      {l:"Ancien / fixe (visible sur une imagerie antérieure, contexte non traumatique récent)",v:"ancien"},
+      {l:"Récent / potentiellement mobile (corps étranger post-traumatique récent, migration non exclue)",v:"recent"},
+      {l:"Je ne sais pas",v:"inconnu"}])];
+    return `<h2>Mode urgence <em>7 / 7</em></h2>
+    ${this.qs.map(q=>q.html).join("")}
+    <div class="actions"><button class="act" id="unext" disabled>Voir l'orientation</button>
+      <button class="gh" id="uprev">Précédent</button></div>`;
+  },
+  bind(){ bindQU(this.qs[0]); $("uprev").onclick=()=>goU(5); },
+  ready:()=>!!U.mobile
+};
+
+/* Orientation. Tiers 0=favorable · 2=prudent · 3=stop (1 n'est pas utilisé :
+   pas de niveau intermédiaire favorable/prudent en mode urgence). */
+function uStopReason(){
+  if(U.compat==="non_compatible") return "incompatible";
+  if(U.loc==="oeil") return "oeil";
+  if(U.ident==="inconnu"&&U.prox==="oui") return "inconnu_proximal";
+  if(U.mobile==="recent"&&["oeil","vaisseau","nerf"].includes(U.loc)) return "migration";
+  return null;
+}
+function uTier(){
+  if(uStopReason()) return 3;
+  if(U.compat!=="conditionnel_precis") return 2;
+  if(U.ident!=="connu_doc") return 2;
+  if(U.prox!=="non") return 2;
+  if(U.taille==="inconnue"||U.nature==="inconnue") return 2;
+  if(U.loc==="vaisseau"||U.loc==="nerf") return 2;
+  return 0;
+}
+/* Mécanisme dominant — heuristique de secours, sans mesure de longueur
+   résonante ni de trajet précis : ce que l'analyse complète établit par
+   le calcul, ce mode le déduit de ce qui est observable en quelques
+   minutes. */
+function uMecanismes(){
+  const m=new Set();
+  if(U.loc==="oeil"){ m.add("couple"); m.add("translation"); }
+  if(U.loc==="vaisseau") m.add("b1");
+  if(U.loc==="nerf"){ m.add("dbdt"); m.add("b1"); }
+  if(U.nature==="passif"){ m.add("couple"); m.add("translation"); }
+  if(U.nature==="actif"){
+    if(U.prox==="oui"||U.prox==="incertain"){ m.add("b1"); m.add("dbdt"); }
+    else { m.add("couple"); m.add("translation"); }
+  }
+  if(U.nature==="inconnue"||m.size===0){ m.add("couple"); m.add("translation"); m.add("dbdt"); m.add("b1"); }
+  return m;
+}
+const U_CONSEILS={
+  couple:["Faites entrer le patient <strong>lentement</strong> dans le tunnel : c'est le passage à travers les lignes de champ, pas la position finale, qui provoque l'à-coup de couple sur un élément ferromagnétique.",
+    "Si un champ plus faible est disponible (1,5 T plutôt que 3 T), le couple en dépend directement.",
+    "Si l'élément est externe (bijou, piercing, dispositif amovible), sécurisez-le mécaniquement avant l'entrée — impossible pour un implant interne."],
+  translation:["Visez à positionner le dispositif le plus près possible de <strong>l'isocentre</strong> du tunnel : le gradient spatial y est quasi nul.",
+    "Ralentissez la vitesse de déplacement de la table, surtout à l'approche du tunnel — la force dépend du produit vitesse × gradient local."],
+  dbdt:["Si le protocole le permet, privilégiez des séquences avec des <strong>gradients moins intenses</strong> (dB/dt plus faible).",
+    "Maintenez un contact avec le patient s'il peut communiquer, pour repérer une stimulation nerveuse (picotement, contraction)."],
+  b1:["Un champ plus faible réduit généralement l'échauffement RF — <strong>sauf</strong> si la nouvelle longueur d'onde se rapproche de la longueur du conducteur, auquel cas l'effet peut s'inverser (non monotone).",
+    "Une compresse froide au contact du trajet du conducteur, si accessible, limite l'élévation locale de température.",
+    "Réduisez le SAR au maximum permis par le protocole.",
+    "Maintenez un contact avec le patient pour repérer une sensation de chaleur."]
+};
+const U_MECN={couple:"Couple (B0)",translation:"Translation (dB/dx)",dbdt:"Neurostimulation (dB/dt)",b1:"Échauffement (B1)"};
+
+/* Détail du palier "stop" : à quoi tient la contre-indication, et ce qui
+   serait à faire si le médecin radiologue responsable décidait malgré tout
+   de maintenir l'examen. Adossé à la raison précise du stop (uStopReason),
+   pas à une heuristique générique — le contenu doit rester exact sur ce
+   palier, celui où l'erreur coûte le plus cher. */
+const U_STOP={
+  incompatible:{
+    risques:[{n:"majeur",t:"Le dispositif est explicitement étiqueté incompatible IRM par le fabricant. Le ou les mécanismes précis (couple, échauffement, dysfonctionnement électronique du dispositif) ne sont pas toujours détaillés publiquement, mais cet étiquetage prime sur toute estimation faite par cet outil."}],
+    mesures:["Rechercher la documentation constructeur ou une base de données d'implants pour identifier le mécanisme précis de l'incompatibilité, si le délai clinique le permet.",
+      "Évaluer une imagerie alternative (CT, échographie) si cliniquement pertinente.",
+      "Si l'IRM reste jugée indispensable malgré l'étiquetage, la décision et sa justification doivent être documentées explicitement par le médecin radiologue responsable, idéalement avec un avis d'expert en sécurité IRM."]
+  },
+  oeil:{
+    risques:[{n:"majeur",t:"Couple (B0) : un élément ferromagnétique dans ou près de l'œil peut subir une rotation brutale dès l'entrée dans le tunnel, avec risque de lésion oculaire directe."},
+      {n:"majeur",t:"Translation (dB/dx) : la force de déplacement peut projeter l'élément à travers les tissus oculaires, y compris hors de la zone visée par l'examen prescrit."}],
+    mesures:["Ne pas installer le patient dans l'aimant sans confirmation formelle de la nature non ferromagnétique de l'élément (radiographie orbitaire de dépistage si disponible et compatible avec le délai clinique).",
+      "Alerter immédiatement le médecin radiologue responsable — l'œil est une zone à tolérance quasi nulle, quel que soit l'examen demandé."]
+  },
+  inconnu_proximal:{
+    risques:[{n:"majeur",t:"Nature du dispositif totalement inconnue (ferromagnétisme, conductivité, dimensions) alors qu'il se trouve dans ou à proximité immédiate de la zone examinée — les quatre mécanismes (B0, dB/dx, dB/dt, B1) sont donc tous potentiellement engagés."}],
+    mesures:["Rechercher activement toute documentation disponible (dossier, imagerie antérieure, entourage du patient) avant de poursuivre.",
+      "Si l'identification reste impossible, discuter avec le médecin radiologue responsable du rapport bénéfice/risque et des alternatives d'imagerie."]
+  },
+  migration:{
+    risques:[{n:"élevé",t:"Le caractère récent du corps étranger n'exclut pas une migration en cours ; sa position actuelle par rapport à une structure vitale (œil, vaisseau, nerf) a pu évoluer depuis la dernière imagerie."},
+      {n:"élevé",t:"Translation (dB/dx) : une force de déplacement, même modeste, peut suffire à léser une structure vitale si le corps étranger est encore mobile."}],
+    mesures:["Obtenir une imagerie de repérage récente (radiographie) si le délai clinique le permet, pour confirmer la position actuelle avant toute décision.",
+      "Discuter avec le médecin radiologue responsable du délai depuis le traumatisme et de la probabilité de migration résiduelle."]
+  }
+};
+
+function uResume(){
+  const tier=uTier();
+  return [
+    "MODE URGENCE — orientation "+({0:"favorable",2:"prudent",3:"stop"}[tier]),
+    `Identification : ${{connu_doc:"connu, documenté",connu_nodoc:"connu, sans documentation",inconnu:"non identifié"}[U.ident]}`,
+    U.compat?`Compatibilité : ${{conditionnel_precis:"conditionnelle précise",conditionnel_flou:"conditionnelle imprécise",non_compatible:"non compatible",pas_doc:"sans documentation"}[U.compat]}`:"",
+    `Nature : ${{actif:"actif",passif:"passif",inconnue:"inconnue"}[U.nature]}`,
+    `Localisation : ${U_LOC[U.loc]}`,
+    U.taille?`Taille : ${{petit:"< 1 cm",moyen:"1-5 cm",grand:"> 5 cm",inconnue:"inconnue"}[U.taille]}`:"",
+    `Proximité de la zone examinée : ${{oui:"oui",non:"non",incertain:"incertaine"}[U.prox]}`,
+    `Ancienneté : ${{ancien:"ancien / fixe",recent:"récent / potentiellement mobile",inconnu:"inconnue"}[U.mobile]}`
+  ].filter(Boolean).join("\n");
+}
+
+USTEPS[7]={
+  render(){
+    const tier=uTier();
+    const cfg={
+      0:{c:"--r0",bg:"--r0bg",t:"Éléments a priori rassurants",
+         b:"Procéder selon le protocole standard. Garder le contact patient actif (poire d'alarme), signaler tout inconfort immédiatement."},
+      2:{c:"--r2",bg:"--r2bg",t:"Informations insuffisantes pour trancher seul·e",
+         b:"Contacter le médecin radiologue responsable avant de démarrer l'examen."},
+      3:{c:"--r4",bg:"--r4bg",t:"Matériel contre-indiqué ou dispositif non maîtrisé",
+         b:"Ne pas installer le patient dans l'aimant. Appeler le médecin radiologue responsable immédiatement."}
+    }[tier];
+    const mecs=[...uMecanismes()];
+    const manque=[];
+    if(U.ident!=="connu_doc") manque.push("documentation ou carte du dispositif");
+    if(U.compat&&U.compat!=="conditionnel_precis") manque.push("conditions IRM précises (champ, antenne, SAR)");
+    if(U.taille==="inconnue") manque.push("taille du matériel");
+    if(U.prox==="incertain") manque.push("distance exacte à la zone examinée");
+    return `<h2>Orientation</h2>
+    <div class="sub">Ceci est une orientation, pas une décision. Le go/no-go de l'examen revient au médecin radiologue responsable de l'IRM.</div>
+    <div class="verdict" style="background:var(${cfg.bg});border-color:var(${cfg.c})">
+      <div class="verdict-t" style="color:var(${cfg.c})">${cfg.t}</div>
+      <div class="verdict-b" style="color:var(${cfg.c})">${cfg.b}</div></div>
+    ${tier===2&&manque.length?`<div class="note"><strong>À rassembler si possible avant d'appeler :</strong> ${manque.join(", ")}.</div>`:""}
+    ${tier===3?(()=>{ const si=U_STOP[uStopReason()]; return si?`
+    <div class="eyebrow">Ce que cette contre-indication implique</div>
+    ${si.risques.map(r=>`<div class="mit"><div class="mit-k">Risque ${r.n}</div><div class="mit-b">${r.t}</div></div>`).join("")}
+    <div class="eyebrow">Si l'examen doit malgré tout être réalisé</div>
+    <div class="note">Décision qui relève exclusivement du médecin radiologue responsable de l'IRM, avec documentation explicite de la justification et du bénéfice attendu.</div>
+    ${si.mesures.map(m=>`<div class="mit"><div class="mit-b">${m}</div></div>`).join("")}`:"";})():
+    `<div class="eyebrow">Si l'examen est réalisé</div>
+      ${mecs.map(m=>`<div class="mit"><div class="mit-k">${U_MECN[m]}</div>
+        <div class="mit-b">${U_CONSEILS[m].join(" ")}</div></div>`).join("")}`}
+    <div class="actions">
+      <button class="act" id="uincident">Déclarer un incident</button>
+      <button class="gh" id="ufull">Passer en analyse complète</button>
+      <button class="gh" id="urestart">Nouvelle analyse urgence</button>
+      <button class="gh" id="uhome">Accueil</button>
+    </div>`;
+  },
+  bind(){
+    $("uincident").onclick=()=>goIncident(uResume());
+    $("ufull").onclick=()=>startExpert();
+    $("urestart").onclick=()=>{ resetU(); goU(0); };
+    $("uhome").onclick=goHome;
+  },
+  ready:()=>true
+};
+
+function goU(n){
+  while(USTEPS[n]&&USTEPS[n].skip&&USTEPS[n].skip()) n++;
+  VIEW="urgence"; U.step=n;
+  $("fields").innerHTML=""; $("srcs").innerHTML="";
+  $("main").innerHTML=USTEPS[n].render();
+  USTEPS[n].bind&&USTEPS[n].bind();
+  const nx=$("unext");
+  if(nx){ nx.disabled=!USTEPS[n].ready(); nx.onclick=()=>goU(n+1); }
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+/* ══════════════════════════════════════════════════════════════
+   DÉCLARER UN INCIDENT
+   Aucune donnée n'est collectée ni conservée ici : l'outil prépare un
+   résumé à coller dans le registre officiel de l'ASTRM, qui reste le
+   seul récepteur des déclarations. Pas de doublon, pas de responsable
+   de traitement supplémentaire.
+   ══════════════════════════════════════════════════════════════ */
+const ASTRM_URL="https://svmtr-astrm.limesurvey.net/365595?lang=fr&newtest=Y";
+function goIncident(prefill){
+  VIEW="incident"; $("fields").innerHTML=""; $("srcs").innerHTML="";
+  const txt=prefill||"Aucune analyse récente disponible dans cette session — décrivez le contexte directement dans le formulaire ASTRM.";
+  $("main").innerHTML=`<h2>Déclarer un incident</h2>
+  <div class="sub">Le registre officiel des incidents IRM en Suisse est tenu par l'ASTRM. Cet outil ne collecte ni ne conserve aucune donnée d'incident : il prépare un résumé à coller dans leur formulaire, que vous complétez et envoyez vous-même.</div>
+  <div class="panel"><div class="panel-h"><div class="panel-t">Résumé à copier</div></div>
+    <div class="dbody" style="padding:14px"><pre style="white-space:pre-wrap;font-family:var(--mono);font-size:12px;line-height:1.6;color:var(--ink-2)">${txt.replace(/</g,"&lt;")}</pre></div></div>
+  <div class="actions">
+    <button class="act" id="icopy">Copier le résumé</button>
+    <button class="gh" id="iopen">Ouvrir le formulaire ASTRM ↗</button>
+  </div>
+  <div class="note" style="margin-top:18px"><strong>Définitions du formulaire ASTRM</strong> — incident : événement fortuit qui aurait pu provoquer des dommages. Near miss : incident qui a failli de très peu provoquer un accident. Événement indésirable grave : entraîne la mort, met en danger la vie de la personne, nécessite une hospitalisation ou sa prolongation, provoque une incapacité ou un handicap important et durable, ou se traduit par une anomalie ou une malformation congénitale.</div>
+  <div class="actions"><button class="gh" id="uhome">Accueil</button></div>`;
+  $("icopy").onclick=()=>{
+    navigator.clipboard.writeText(txt).then(()=>{
+      $("icopy").textContent="Résumé copié"; setTimeout(()=>$("icopy").textContent="Copier le résumé",1800);
+    }).catch(()=>{ $("icopy").textContent="Copie impossible"; });
+  };
+  $("iopen").onclick=()=>window.open(ASTRM_URL,"_blank","noopener");
+  $("uhome").onclick=goHome;
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+/* ══════════════════════════════════════════════════════════════
+   FORMATION & CONSULTING
+   Page vitrine + formulaire, envoyé par mailto (pas de backend).
+   ══════════════════════════════════════════════════════════════ */
+function goFormation(){
+  VIEW="formation"; $("fields").innerHTML=""; $("srcs").innerHTML="";
+  $("main").innerHTML=`<h2>Formation &amp; consulting</h2>
+  <div class="sub">Formation en sécurité IRM — présentielle, en ligne, ou conseil/audit sur site pour un service ou une équipe. Public de 1 à plus de 450 personnes, en français et en anglais.</div>
+  <div class="note">Plus de six ans d'expérience en formation, plus de 1000 personnes formées toutes professions confondues, intervention en congrès. Dispensée par un expert en sécurité IRM (${CONTACT.titre}).</div>
+  <div class="ctrl">
+    <div class="f"><label for="fnom">Votre nom</label><input type="text" id="fnom" placeholder="Nom, prénom"></div>
+    <div class="f"><label for="fent">Entreprise / institution</label><input type="text" id="fent" placeholder="Nom de l'établissement"></div>
+    <div class="f"><label for="fadr">Adresse de l'entreprise</label><input type="text" id="fadr" placeholder="Adresse"></div>
+    <div class="f"><label for="ffmt">Format souhaité</label>
+      <select id="ffmt"><option value="presentiel">Présentielle</option><option value="ligne">En ligne</option><option value="conseil">Conseil / audit sur site</option></select></div>
+    <div class="f"><label for="fpub">Public cible</label>
+      <select id="fpub"><option value="trm">TRM</option><option value="medecins">Médecins radiologues</option>
+      <option value="secretaires">Secrétaires médicales</option><option value="agents">Agents de nettoyage</option>
+      <option value="autre">Autre</option></select></div>
+  </div>
+  <div class="q"><div class="q-l">Votre besoin</div>
+    <div class="q-h">Précisez le contenu souhaité, la durée envisagée, le temps dont vous disposez, et sur combien de jours.</div>
+    <textarea id="fbesoin" rows="5" style="width:100%;font-family:var(--sans);font-size:14px;color:var(--ink);background:var(--paper);border:1px solid var(--line-2);border-radius:var(--radius-xs);padding:9px 10px"></textarea></div>
+  <div class="actions">
+    <button class="act" id="fsend">Envoyer la demande</button>
+    <button class="gh" id="uhome">Accueil</button>
+  </div>
+  <div class="note" style="margin-top:14px">Un devis vous sera adressé après réception de votre demande.</div>`;
+  $("fsend").onclick=()=>{
+    if(!CONTACT.email){ alert("Aucune adresse de contact n'est configurée dans ce fichier pour le moment."); return; }
+    const fmt={presentiel:"Présentielle",ligne:"En ligne",conseil:"Conseil / audit sur site"}[$("ffmt").value];
+    const pub={trm:"TRM",medecins:"Médecins radiologues",secretaires:"Secrétaires médicales",agents:"Agents de nettoyage",autre:"Autre"}[$("fpub").value];
+    const body=[
+      `Nom : ${$("fnom").value}`,`Entreprise : ${$("fent").value}`,`Adresse : ${$("fadr").value}`,
+      `Format souhaité : ${fmt}`,`Public cible : ${pub}`,"","Besoin :",$("fbesoin").value
+    ].join("\n");
+    window.location.href=`mailto:${CONTACT.email}?subject=${encodeURIComponent("Demande de formation / consulting — sécurité IRM")}&body=${encodeURIComponent(body)}`;
+  };
+  $("uhome").onclick=goHome;
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+$("home-link").onclick=e=>{ e.preventDefault(); goHome(); };
+
+/* Légère animation d'entrée à chaque changement d'écran (désactivée si "réduire les animations" est actif — voir CSS). */
+(function(){
+  const mainEl=$("main");
+  const mo=new MutationObserver(()=>{
+    mainEl.classList.remove("enter");
+    void mainEl.offsetWidth; /* force reflow pour rejouer l'animation */
+    mainEl.classList.add("enter");
+  });
+  mo.observe(mainEl,{childList:true});
+})();
+
+goHome();
+</script>
+</body>
+</html>
