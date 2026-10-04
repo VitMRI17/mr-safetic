@@ -1370,7 +1370,7 @@ const SOURCES=[
  ["Mode urgence — tour de taille prédit depuis l'IMC (moyenne des équations hommes / femmes à 45 ans, groupe de référence)","Bozeman 2012, données NHANES","publie"],
  ["Mode urgence — tronc assimilé à une ellipse, largeur = 1,35 × épaisseur, pour passer du tour de taille aux distances latérale et antéro-postérieure","Convention de l'outil","conv"],
  ["Mode urgence — même grille dB/dt appliquée aux axes X, Y et Z, axe le plus défavorable retenu ; isocentre supposé sur l'axe médian du patient","Convention de l'outil","conv"],
- ["Mode urgence — dispositif actif sans documentation complète : IRM non recommandée (programmation pré-examen nécessaire dans la majorité des cas) ; monitoring ECG / SpO₂ réservé aux stimulateurs et défibrillateurs cardiaques","Règle de l'expert de l'outil (MRSO)","conv"],
+ ["Mode urgence — implant actif sans documentation complète : IRM non recommandée (programmation pré-examen nécessaire dans la majorité des cas) ; monitoring ECG / SpO₂ réservé aux stimulateurs et défibrillateurs cardiaques","Règle de l'expert de l'outil (MRSO)","conv"],
  ["Mode urgence — matériel orthopédique dans le volume d'émission : réalisable en mode SAR normal ; mode de premier niveau sur validation du radiologue","Règle de l'expert de l'outil (MRSO) ; limites de SAR CEI 60601-2-33","conv"],
  ["Mode urgence — corps étranger : échauffement excessif seulement si objet conducteur allongé de plus de 2 cm ou en boucle ; radiographie standard recommandée pour le dépistage","Shellock, MRIsafety.com (Metallic Foreign Bodies and Screening)","ref"],
  ["Mode urgence — clip d'anévrisme : aucun clip ferromagnétique posé à partir de 2000 ; 1995-1999 avis et recherches ; avant 1995 ou inconnu : IRM non recommandée sauf matériau ou étiquetage connus","Hofman 2024 ; Shellock, MRIsafety.com (Aneurysm Clips) ; règle de l'expert de l'outil","publie"],
@@ -1381,7 +1381,9 @@ const SOURCES=[
  ["Mode urgence — matériel orthopédique : risque de déplacement faible si ancré dans l'os ; échauffement surtout pour les longs montages et les fixateurs externes","Shellock, MRIsafety.com (Orthopedic Implants) ; règle de l'expert de l'outil","ref"],
  ["Mode urgence — stent coronaire : aucune précaution à 1,5 T et 3 T, y compris immédiatement après la pose","Levine 2007 (déclaration scientifique AHA) ; ACR Manual on MR Safety","ref"],
  ["Mode urgence — implant passif intravasculaire : échauffement RF considéré faible grâce au refroidissement par le flux sanguin (réduction de plus de 50 % dès 20 % du débit physiologique ; élévation ≈ 3,4 fois moindre in vivo) ; non applicable aux stents non vasculaires","Gross 2023 ; Gross 2016 (modèle porcin)","publie"],
- ["Mode urgence — passif étiqueté conditionnel sans conditions lisibles : échauffement et stimulation plafonnés à « modéré »","Construction propre à cet outil","conv"]
+ ["Mode urgence — passif étiqueté conditionnel sans conditions lisibles : échauffement et stimulation plafonnés à « modéré »","Construction propre à cet outil","conv"],
+ ["Mode urgence — corps étranger : le risque de déplacement dépend de l'alliage (propriétés ferromagnétiques), de la géométrie, du champ B0 et de son gradient spatial, de la force de rétention et de la proximité d'une structure sensible (œil, vaisseau, nerf) ; la radiographie détecte le métal mais ne donne pas son alliage","Shellock, MRIsafety.com (Metallic Foreign Bodies and Screening)","ref"],
+ ["Mode urgence — alliage inconnu traité comme potentiellement ferromagnétique ; élément ferromagnétique ou présumé tel dans l'œil : IRM non recommandée ; alliage inconnu dans l'œil : avis du médecin radiologue requis ; stimulation (dB/dt) informative pour un implant passif ou un corps étranger","Règle de l'expert de l'outil (MRSO), à valider","conv"]
 ];
 const REFS=[
  `Kanal E. <em>Standardized approaches to MR safety assessment of patients with implanted devices.</em> Magn Reson Imaging Clin N Am 2020;28:537–548. doi:10.1016/j.mric.2020.07.003`,
@@ -1536,22 +1538,42 @@ function goContact(){
 let U={};
 function resetU(){
   U={step:0,ex:"crane",B:"1.5",coil:"body",pos:"dos",h:null,w:null,
-     ident:null,compat:null,nature:null,actifType:null,taille:null,struct:null,clipYear:null,valveYear:null,orthoType:null,mobile:null,
+     ident:null,compat:null,nature:null,actifType:null,taille:null,struct:null,alloy:null,clipYear:null,valveYear:null,orthoType:null,mobile:null,
      pt:null,mqView:0};
 }
 resetU();
+/* Type d'implant (si passif) ou structure sensible voisine (si corps étranger).
+   Les options proposées dépendent de la région désignée sur le mannequin. */
 const U_STRUCT={
-  oeil:"Œil / orbite",
+  oeil:"Œil ou orbite",
   coronaire:"Stent coronaire",
   valve:"Implant cardiaque passif (valve, TAVI, annuloplastie, FOP, MitraClip)",
   clip:"Clip d'anévrisme intracrânien",
   vaisseau:"Autre implant vasculaire (stent périphérique, filtre cave, occluseur…)",
   conduit:"Stent non vasculaire (biliaire, œsophagien, bronchique, urétéral)",
   os:"Matériel orthopédique (prothèse, vis, plaque, tiges…)",
-  capsule:"Vidéocapsule endoscopique ingérée",
-  nerf:"Tissu mou, à proximité d'un trajet nerveux",
-  autre:"Tissu mou, sous-cutané, autre / je ne sais pas"
+  vital:"Au contact d'un gros vaisseau, du cœur, du cerveau ou de la moelle",
+  nerf:"Au contact d'un nerf",
+  autre:"Aucune de ces structures — tissus mous, graisse, muscle ou os",
+  inconnu_site:"Je ne sais pas"
 };
+function uRegion(){
+  const p=U.pt; if(!p) return "autre";
+  if(Math.abs(p.lr)>17&&p.f>=.17&&p.f<.56) return "bras";
+  const f=p.f;
+  return f<.13?"tete":f<.165?"cou":f<.33?"thorax":f<.47?"abdomen":f<.56?"pelvis":"jambes";
+}
+function uStructOpts(){
+  const R=uRegion(), L=U_STRUCT;
+  if(U.nature==="passif"){
+    const by={tete:["clip","oeil","os"],cou:["vaisseau","conduit","os"],thorax:["coronaire","valve","vaisseau","conduit","os"],
+      abdomen:["vaisseau","conduit","os"],pelvis:["vaisseau","conduit","os"],jambes:["vaisseau","os"],bras:["vaisseau","os"]}[R]||[];
+    return [...by.map(k=>({l:L[k],v:k})),{l:"Autre implant passif (expandeur, matériel mammaire…) / je ne sais pas",v:"autre"}];
+  }
+  const o=[]; if(R==="tete") o.push("oeil");
+  o.push("vital","nerf","autre","inconnu_site");
+  return o.map(k=>({l:L[k],v:k}));
+}
 let QUC=0;
 function QU(key,label,hint,opts){
   const id="qu"+(++QUC);
@@ -1786,17 +1808,18 @@ function uEnergies(){
   const B=+U.B, hi=B>=3, mag=MAG[U.B];
   const st=U.struct, nat=["coronaire","valve"].includes(st)?"passif":U.nature, fil=nat==="fil";
   const small=U.taille==="petit"||st==="clip", fixe=U.mobile==="ancien";
+  const alloy=U.alloy, sens=["oeil","vital","nerf"].includes(st);        // structure où un déplacement est grave
   const zTxt=g.fil?`trajet estimé à ±${FIL_SPAN} cm dans la même région anatomique, point le plus proche à ${cm(g.zMin)} cm de l'isocentre`:`à ${cm(g.z)} cm de l'isocentre le long du tunnel`;
   const E=(k,n,lv,why,conseil,info)=>({k,n,lv,why,conseil,info:!!info});
-  const all0=w=>[E("B0","Couple de rotation",0,w,"couple"),E("dB/dx","Force de translation",0,w,"translation"),
-                 E("dB/dt","Stimulation (gradients)",0,w,"dbdt"),E("B1","Échauffement (radiofréquence)",0,w,"b1")];
+  const all0=w=>[E("B0","Couple de rotation (B0)",0,w,"couple"),E("dB/dx","Force de translation (gradient spatial de B0, dB/dx)",0,w,"translation"),
+                 E("dB/dt","Stimulation (gradients, dB/dt)",0,w,"dbdt"),E("B1","Échauffement (radiofréquence, B1)",0,w,"b1")];
 
   /* Implants cardiaques passifs et stents coronaires : aucune contrainte de
      gradient spatial, pas de délai après la pose, 1,5 ou 3 T (fiche HUG ;
      Shellock). Seule condition : le mode SAR (voir uSarNote). */
   if(st==="coronaire") return all0("Stent coronaire : aucun stent coronaire ferromagnétique connu ; pas de contrainte de gradient spatial ni de délai après la pose, jusqu'à 3 T. Seule condition : le mode SAR indiqué plus bas.");
   if(st==="valve"&&U.valveYear==="autre") return all0("Implant cardiaque passif actuellement commercialisé : pas de contrainte de gradient spatial ni de délai après la pose, à 1,5 ou 3 T. Seule condition : le mode SAR indiqué plus bas.");
-  /* Dispositif actif documenté : couvert par les conditions du fabricant. */
+  /* Implant actif documenté : couvert par les conditions du fabricant. */
   if(nat==="actif"&&doc) return all0(`Couvert par les conditions du fabricant — vérifier que ${mag}, l'antenne et le SAR prévus y figurent, et réaliser la programmation pré-examen.`);
   if(doc) return all0(`Couvert par les conditions de l'étiquetage, à condition de les respecter (vérifier que ${mag} y figure).`);
 
@@ -1808,51 +1831,61 @@ function uEnergies(){
   /* ---- B0 et dB/dx : présents dès l'entrée dans le tunnel ; modulés par le
      matériau et l'ancrage, pas par la position finale. ---- */
   let force=g.inBore?2:1, fWhy=[];
-  fWhy.push(g.inBore?"Le dispositif entre dans le tunnel : le couple s'exerce partout dans le volume, quelle que soit la position"
-                    :`Le dispositif reste hors du tunnel (${zTxt}) : seul le champ de fuite l'atteint`);
+  fWhy.push(g.inBore?"L'implant entre dans le tunnel : le couple s'exerce partout dans le volume, quelle que soit la position"
+                    :`L'implant reste hors du tunnel (${zTxt}) : il n'est exposé qu'aux gradients de champ magnétique statique (dB/dx)`);
   if(fil){ force=0; fWhy.push("fil ou sonde : le risque n'est pas le déplacement mais l'échauffement"); }
   else if(st==="clip"&&U.clipYear==="2000"){ force=0; fWhy.push("clip posé en 2000 ou après : aucun clip ferromagnétique connu posé depuis (Hofman 2024)"); }
   else if(vasc){ force=0; fWhy.push("implant vasculaire passif : risque de déplacement considéré comme faible"); }
   else if(conduit){ force=0; fWhy.push("stent non vasculaire : pas de modèle ferromagnétique connu"); }
   else if(ortho&&oType!=="externe"){ force=fixe?0:1; fWhy.push(fixe?"matériel ancré dans l'os, ancien : il ne bougera pas":"matériel ancré dans l'os, mais récent"); }
+  else if(alloy==="nonmetal"){
+    force=0; fWhy.push("matériau non métallique : aucune interaction avec le champ statique");
+  }
+  else if(alloy==="nonferro"){
+    force=0; fWhy.push("alliage non ferromagnétique (titane, plomb, cuivre…) : pas de couple ni de force de déplacement notables — à condition que cette information soit fiable (compte rendu opératoire, fabricant)");
+  }
   else {
     if(U.compat==="conditionnel_flou"){
       if(!hi){ force=Math.min(force,1); fWhy.push("le fabricant le déclare conditionnel, ce qui exclut en pratique un ferromagnétisme marqué"); }
       else fWhy.push(`étiqueté conditionnel, mais sans conditions lisibles on ne peut pas confirmer que ${mag} est couvert`);
     }
-    if(small&&fixe&&!hi&&force>1){ force=1; fWhy.push("élément de moins de 2 cm, fixe"); }
+    if(alloy==="ferro") fWhy.push("alliage ferromagnétique ou présumé tel : couple et force de déplacement possibles, proportionnels à la masse de métal et à l'intensité du champ");
+    else if(alloy==="inconnu"||(alloy==null&&(U.ident==="inconnu"||nat==="inconnue"||nat==="etranger"))) fWhy.push("alliage inconnu : traité comme potentiellement ferromagnétique par prudence (la radiographie et le scanner donnent la position, la taille et la densité, pas l'alliage)");
+    if(small&&fixe&&!hi&&force>1&&!sens){ force=1; fWhy.push("élément de moins de 2 cm, fixe, loin d'une structure sensible"); }
+    else if(small&&fixe&&sens) fWhy.push("élément petit et ancien, mais au contact d'une structure où un déplacement, même minime, est grave : pas de réduction du niveau");
     else if(small&&fixe&&hi) fWhy.push(`élément petit et fixe, mais à ${mag} le couple est environ 4 fois celui de 1,5 T`);
-    if(U.ident==="inconnu"&&st==="autre") fWhy.push("à confirmer par radiographie : si l'élément est sous-cutané, musculaire, graisseux ou osseux et loin d'une artère, d'une veine ou d'un nerf, le risque est faible");
+    if(sens&&alloy!=="nonferro") fWhy.push(st==="oeil"?"œil : l'élément n'est retenu que très faiblement, une rotation ou un déplacement lèse directement la rétine ou le nerf optique":st==="vital"?"au contact d'une structure vitale : un déplacement, même de quelques millimètres, peut être grave":"au contact d'un nerf : un déplacement peut léser le nerf");
+    if(!sens&&(U.ident==="inconnu"||nat==="etranger"||nat==="inconnue")&&alloy!=="ferro") fWhy.push("si l'élément est dans les tissus mous, la graisse, le muscle ou l'os et loin d'un vaisseau ou d'un nerf, un déplacement serait peu dangereux");
     if(B<1.5) fWhy.push(`champ de ${mag} : couple nettement plus faible qu'à 1,5 T`);
   }
-  out.push(E("B0","Couple de rotation",force,fWhy.join(" ; ")+".","couple"));
-  out.push(E("dB/dx","Force de translation",force,force===0?"Même raisonnement que pour le couple : risque de déplacement faible pour ce type de matériel.":
-    (g.inBore?"Maximale à l'entrée du tunnel, quasi nulle à l'isocentre : le risque se joue pendant le déplacement de la table, pas pendant l'acquisition.":"Le dispositif ne franchit pas l'entrée du tunnel ; il reste soumis au champ de fuite."),"translation"));
+  out.push(E("B0","Couple de rotation (B0)",force,fWhy.join(" ; ")+".","couple"));
+  out.push(E("dB/dx","Force de translation (gradient spatial de B0, dB/dx)",force,force===0?"Même raisonnement que pour le couple : risque de déplacement faible pour ce type de matériel.":
+    (g.inBore?"Maximale à l'entrée du tunnel, quasi nulle à l'isocentre : le risque se joue pendant le déplacement de la table, pas pendant l'acquisition.":"L'implant ne franchit pas l'entrée du tunnel ; il n'est exposé qu'aux gradients de champ magnétique statique (dB/dx)."),"translation"));
 
   /* ---- dB/dt : gradué sur les trois axes, axe le plus défavorable. Pour un
      matériel passif, pas de stimulation : niveau informatif seulement. ---- */
   const axes=[["le long du tunnel",g.dt.z,cm(g.zDt)],["horizontalement dans le tunnel",g.dt.x,cm(g.X)],["verticalement dans le tunnel",g.dt.y,cm(g.Y)]];
   const worst=axes.reduce((a,b)=>b[1]>a[1]?b:a);
   const zoneN=["Zone de gradient faible","Zone intermédiaire","Zone de gradient maximal"][g.Edt];
-  const passifDt = nat==="passif" || (nat==="inconnue"&&small);
+  const passifDt = nat==="passif" || nat==="etranger" || (nat==="inconnue"&&small);
   let dt, dWhy=`${zoneN} — axe le plus défavorable : ${worst[0]} (${worst[2]} cm de l'isocentre).`, dInfo=false;
   if(passifDt){
     dt = small?0:g.Edt; dInfo=true;
     dWhy+= small?" Élément de moins de 2 cm : courants induits négligeables."
-                :" Matériel passif : pas de stimulation possible. Dans un objet volumineux, les gradients peuvent induire des courants (vibration, sensation de chaleur) — <em>informatif, n'entre pas dans l'orientation</em>.";
+                :" Implant passif ou corps étranger : pas de stimulation possible (la stimulation concerne les implants actifs et les conducteurs allongés). Dans un objet volumineux, les gradients peuvent induire des courants (vibration, sensation de chaleur) — <em>informatif, n'entre pas dans l'orientation</em>.";
   } else {
     dt=g.Edt;
-    if(nat==="actif") dWhy+=" Dispositif actif : les gradients peuvent induire des courants dans ses sondes ou perturber son électronique.";
+    if(nat==="actif") dWhy+=" Implant actif : les gradients peuvent induire des courants dans ses sondes ou perturber son électronique.";
     else if(fil) dWhy+=" Fil ou sonde : les gradients induisent des courants le long du conducteur, jusqu'à son extrémité.";
-    else dWhy+=" Nature inconnue : traité comme un dispositif actif par prudence.";
-    if(st==="nerf"&&g.Edt>=1&&dt<2){ dt++; dWhy+=" Proximité d'un trajet nerveux : un niveau de plus."; }
+    else dWhy+=" Nature inconnue : on ne peut pas exclure un implant actif ou un conducteur allongé ; niveau calculé par prudence.";
   }
-  out.push(E("dB/dt","Stimulation (gradients)",dt,dWhy,"dbdt",dInfo));
+  out.push(E("dB/dt","Stimulation (gradients, dB/dt)",dt,dWhy,"dbdt",dInfo));
 
   /* ---- B1 ---- */
   const F=FREQ[U.B], coilN=COIL[U.coil].toLowerCase();
   let b1=g.Eb1, bWhy=["Hors du volume d'émission","En bordure du volume d'émission","Dans le volume d'émission"][g.Eb1]+` (${coilN}, ${zTxt}).`;
-  if(fil&&g.Eb1>=1){ b1=2; bWhy+=` Fil ou sonde : cas typique de l'échauffement par effet d'antenne, concentré à l'extrémité. À ${mag}, la longueur résonante en tissu est d'environ ${F.Lt} cm.`; }
+  if(alloy==="nonmetal"){ b1=0; bWhy+=" Matériau non métallique : pas d'échauffement par radiofréquence."; }
+  else if(fil&&g.Eb1>=1){ b1=2; bWhy+=` Fil ou sonde : cas typique de l'échauffement par effet d'antenne, concentré à l'extrémité. À ${mag}, la longueur résonante en tissu est d'environ ${F.Lt} cm.`; }
   else if(small&&b1>0){ b1=0; bWhy+=" Élément de moins de 2 cm : pas d'échauffement préoccupant (un échauffement excessif suppose un objet conducteur allongé de plus de 2 cm ou une boucle)."; }
   else if(vasc&&b1>0){ b1=0; bWhy+=" Implant baigné dans le flux sanguin : la circulation évacue la chaleur (réduction de plus de 50 % de l'élévation de température dès 20 % du débit physiologique — Gross 2023). Condition : le mode SAR indiqué plus bas."; }
   else if(conduit&&b1>1){ b1=1; bWhy+=" Stent non vasculaire : pas de refroidissement par le flux sanguin. Rester en mode SAR normal."; }
@@ -1864,19 +1897,20 @@ function uEnergies(){
   else if(condPassif&&b1>1){ b1=1; bWhy+=" Étiqueté conditionnel : conçu pour supporter l'IRM en mode SAR normal — à respecter."; }
   if(!fil&&!small&&b1>=1&&(U.taille==="grand"||U.taille==="moyen")) bWhy+=` À ${mag}, la longueur résonante en tissu est d'environ ${F.Lt} cm : un objet de cette taille peut s'en approcher.`;
   if(g.Eb1>=1&&g.periph) bWhy+=" Position périphérique : le champ électrique y est plus intense qu'au centre.";
-  out.push(E("B1","Échauffement (radiofréquence)",b1,bWhy,"b1"));
+  out.push(E("B1","Échauffement (radiofréquence, B1)",b1,bWhy,"b1"));
   return out;
 }
 
-/* ---------- Dispositifs actifs ---------- */
+/* ---------- Implants actifs ---------- */
 const U_ACTIF={
   cardiaque:"Stimulateur cardiaque ou défibrillateur (PM / DAI)",
   neuro:"Neurostimulateur (cérébral profond, médullaire, vagal, sacré / vésical…)",
   cochleaire:"Implant cochléaire ou auditif actif",
   pompe:"Pompe implantable (intrathécale, insuline…)",
-  autre:"Autre dispositif actif"
+  capsule:"Vidéocapsule endoscopique ingérée (PillCam et équivalents)",
+  autre:"Autre implant actif"
 };
-const U_REFERENT={cardiaque:"la cardiologie / rythmologie",neuro:"le neurologue ou le centre implanteur",cochleaire:"l'ORL ou le centre implanteur",pompe:"le service référent de la pompe",autre:"le service référent du dispositif"};
+const U_REFERENT={cardiaque:"la cardiologie / rythmologie",neuro:"le neurologue ou le centre implanteur",cochleaire:"l'ORL ou le centre implanteur",pompe:"le service référent de la pompe",capsule:"le service de gastro-entérologie",autre:"le service référent de l'implant"};
 function uActifSteps(){
   const mag=MAG[U.B], t=U.actifType||"autre", s=[];
   s.push(`Vérifier que <strong>l'ensemble du système</strong> (boîtier, sondes ou électrodes, extensions) est étiqueté conditionnel, et que ${mag}, l'antenne et le SAR prévus figurent dans les conditions.`);
@@ -1890,15 +1924,16 @@ function uActifSteps(){
 /* ---------- Motifs : 3 = IRM non recommandée · 2 = avis du médecin requis ---------- */
 function uMotifs(){
   const m=[], st=U.struct, precis=U.compat==="conditionnel_precis";
-  if(st==="capsule") m.push({k:"capsule",t:3});
-  if(U.nature==="actif"&&!precis) m.push({k:"actif_sans_doc",t:3});
+  if(U.actifType==="capsule") m.push({k:"capsule",t:3});
+  if(U.nature==="actif"&&!precis&&U.actifType!=="capsule") m.push({k:"actif_sans_doc",t:3});
+  if(st==="oeil"&&U.alloy==="ferro") m.push({k:"oeil_ferro",t:3});
   if(st==="clip"&&!precis&&(U.clipYear==="avant"||U.clipYear==="inconnue")) m.push({k:"clip",t:3});
   if(U.ident==="inconnu"&&U.pt&&uGeom().Eb1===2&&(U.taille==="inconnue"||U.mobile==="inconnu")) m.push({k:"inconnu_proximal",t:3});
   if(U.compat==="non_compatible"&&U.nature!=="actif") m.push({k:"incompatible",t:2});
-  if(st==="oeil") m.push({k:"oeil",t:2});
+  if(st==="oeil"&&U.alloy!=="nonmetal") m.push({k:"oeil",t:2});
   if(st==="clip"&&!precis&&U.clipYear==="9599") m.push({k:"clip_9599",t:2});
   if(st==="valve"&&U.valveYear!=="autre") m.push({k:"valve",t:2});
-  if(U.mobile==="recent"&&st==="nerf") m.push({k:"migration",t:2});
+  if(U.mobile==="recent"&&(st==="nerf"||st==="vital")) m.push({k:"migration",t:2});
   return m;
 }
 function uTier(){
@@ -1926,9 +1961,9 @@ const U_MOTIF={
     mesures:["Confirmer l'excrétion de la capsule (témoignage fiable du patient, ou radiographie abdominale) avant toute IRM."]
   },
   actif_sans_doc:{
-    risques:["Dispositif actif sans documentation complète (modèle, conditions IRM). Dans la majorité des cas, une programmation pré-examen est nécessaire, et elle est impossible sans connaître le modèle exact."],
+    risques:["Implant actif sans documentation complète (modèle, conditions IRM). Dans la majorité des cas, une programmation pré-examen est nécessaire, et elle est impossible sans connaître le modèle exact."],
     mesures:["Obtenir la documentation : carte patient, dossier, centre implanteur, ou base de données du fabricant. À défaut, une radiographie montre souvent un marquage radio-opaque sur le boîtier.",
-      "Contacter le référent du dispositif avant toute décision.",
+      "Contacter le référent de l'implant avant toute décision.",
       "Évaluer une imagerie alternative (CT, échographie) si l'examen ne peut pas attendre la documentation."]
   },
   clip:{
@@ -1938,19 +1973,26 @@ const U_MOTIF={
   },
   inconnu_proximal:{
     risques:["Objet non identifié dans le volume d'émission radiofréquence de l'examen, dont la taille ou l'ancienneté sont inconnues : impossible d'évaluer le couple, la migration ou l'échauffement."],
-    mesures:["Réaliser une radiographie pour préciser la position, la taille et la forme de l'objet, et sa proximité avec une artère, une veine ou un nerf. Un élément de moins de 2 cm, ancien et fixe, ne justifie plus de recommander contre l'IRM.",
+    mesures:["Réaliser une radiographie pour préciser la position, la taille et la forme de l'objet, et sa proximité avec une artère, une veine ou un nerf (elle ne donne pas son alliage : interroger le patient et le dossier sur l'origine et le matériau). Un élément de moins de 2 cm, ancien et fixe, ne justifie plus de recommander contre l'IRM.",
       "Si l'identification reste impossible, discuter avec le médecin radiologue responsable du rapport bénéfice/risque et des alternatives d'imagerie."]
   },
   incompatible:{
-    risques:["Matériel étiqueté non compatible IRM par le fabricant : principalement un risque de déplacement ou de dysfonctionnement selon le dispositif."],
+    risques:["Matériel étiqueté non compatible IRM par le fabricant : principalement un risque de déplacement ou de dysfonctionnement selon l'implant."],
     mesures:["Mettre en balance le bénéfice attendu et le risque avec le médecin radiologue responsable ; envisager une imagerie alternative.",
       "Si l'IRM est maintenue, réduire le risque au maximum : par exemple, pour un expandeur mammaire à valve magnétique, immobiliser l'expandeur pour limiter son déplacement ; champ le plus faible disponible ; entrée lente dans le tunnel.",
       "Documenter explicitement la décision et sa justification."]
   },
   oeil:{
-    risques:["Élément métallique dans ou près de l'œil : un élément ferromagnétique peut subir une rotation ou un déplacement dès l'entrée dans le tunnel, avec risque de lésion oculaire."],
-    mesures:["Préciser la nature du corps étranger (radiographie orbitaire de dépistage, imagerie antérieure).",
-      "Si l'élément est superficiel, envisager son retrait par un médecin spécialisé avant l'IRM."]
+    risques:["Élément métallique dans ou près de l'œil : un élément ferromagnétique peut subir une rotation ou un déplacement dès l'entrée dans le tunnel (champ statique B0 et son gradient spatial dB/dx), avec risque de lésion oculaire grave. L'échauffement est un risque secondaire."],
+    mesures:["Établir ou confirmer l'<strong>alliage</strong> : compte rendu opératoire ou ophtalmologique, fabricant, circonstances de l'accident (meulage, soudure, éclat d'obus, projectile) et avis de l'ophtalmologue. L'imagerie ne suffit pas à le déterminer.",
+      "Radiographie ou scanner des orbites : ils renseignent sur la présence, la localisation, la taille et la densité de l'élément — <strong>pas sur son alliage</strong>.",
+      "Si l'élément est superficiel ou récupérable, envisager son retrait par un médecin spécialisé avant l'IRM.",
+      "Si l'alliage ne peut pas être établi, discuter d'une imagerie alternative (scanner) avec le médecin radiologue responsable."]
+  },
+  oeil_ferro:{
+    risques:["Élément ferromagnétique, ou présumé tel, dans l'œil ou l'orbite : l'entrée dans le champ peut le faire tourner ou le déplacer et provoquer une lésion oculaire grave (cécité). C'est une situation où l'IRM n'est pas recommandée."],
+    mesures:["Seule une preuve documentée que l'alliage n'est pas ferromagnétique (compte rendu opératoire, fabricant, avis de l'ophtalmologue) permet de reconsidérer l'examen : répondre alors « non ferromagnétique ».",
+      "Évaluer une imagerie alternative (scanner, échographie orbitaire) si l'examen ne peut pas attendre."]
   },
   clip_9599:{
     risques:["Clip d'anévrisme posé entre 1995 et 1999 : la plupart des clips étaient déjà non ferromagnétiques, mais pas tous selon les centres et les fabricants."],
@@ -1979,10 +2021,11 @@ function uResume(){
     `Patient : ${m.assumedH?"taille non renseignée (170 cm retenus)":m.h+" cm"}, ${m.assumedW?"poids non renseigné (IMC 25 retenu)":U.w+" kg (IMC "+m.bmi.toFixed(1)+")"}`,
     `Identification : ${{connu_doc:"connu, documenté",connu_nodoc:"connu, sans documentation",inconnu:"non identifié"}[U.ident]}`,
     U.compat?`Compatibilité : ${{conditionnel_precis:"conditionnelle précise",conditionnel_flou:"conditionnelle imprécise",non_compatible:"non compatible",pas_doc:"sans documentation"}[U.compat]}`:"",
-    `Nature : ${{actif:"actif",passif:"passif",fil:"fil / sonde / électrode",inconnue:"inconnue"}[U.nature]}`,
-    U.actifType?`Type de dispositif actif : ${U_ACTIF[U.actifType]}`:"",
+    `Nature : ${{actif:"actif",passif:"passif",etranger:"corps étranger",fil:"fil / sonde / électrode",inconnue:"inconnue"}[U.nature]}`,
+    U.actifType?`Type d'implant actif : ${U_ACTIF[U.actifType]}`:"",
     U.taille?`Taille : ${{petit:"< 2 cm",moyen:"2-5 cm",grand:"> 5 cm",inconnue:"inconnue"}[U.taille]}`:"",
-    `Structure au contact : ${U_STRUCT[U.struct]}`,
+    U.struct?`${U.nature==="passif"?"Type d'implant":"Structure sensible à proximité"} : ${U_STRUCT[U.struct]}`:"",
+    U.alloy?`Alliage : ${{ferro:"ferromagnétique ou probable",nonferro:"non ferromagnétique",nonmetal:"non métallique",inconnu:"inconnu"}[U.alloy]}`:"",
     U.clipYear?`Année d'implantation du clip : ${U_CLIPY[U.clipYear]}`:"",
     U.valveYear?`Année de pose : ${U_VALVY[U.valveYear]}`:"",
     U.orthoType?`Matériel orthopédique : ${U_ORTHO[U.orthoType]}`:"",
@@ -2012,7 +2055,7 @@ USTEPS[0]={
   render(){
     const m=uMorph();
     return `<h2>Mode urgence <em>1 / ${uStepNum()[1]}</em></h2>
-    <div class="sub">Répondez avec ce que vous avez sous la main maintenant — dossier, imagerie antérieure, observation directe. Pas besoin de documentation technique du dispositif.</div>
+    <div class="sub">Répondez avec ce que vous avez sous la main maintenant — dossier, imagerie antérieure, observation directe. Pas besoin de documentation technique de l'implant.</div>
     <div class="ctrl">
       <div class="f"><label for="uex">Examen prévu</label>${sel("uex",HYP.exams,U.ex)}
         <div class="fh">Détermine la région placée à l'isocentre.</div></div>
@@ -2052,10 +2095,10 @@ function uMorphTxt(m){
 }
 USTEPS[1]={
   render(){
-    this.qs=[QU("ident","Identification du dispositif","",[
+    this.qs=[QU("ident","Identification de l'implant","Dans cet outil, « implant » désigne tout élément métallique ou électronique présent dans le corps, d'origine médicale ou non.",[
       {l:"Connu, documentation disponible (carte implant, notice)",v:"connu_doc"},
       {l:"Connu, mais sans documentation sous la main",v:"connu_nodoc"},
-      {l:"Inconnu — corps étranger ou dispositif non identifié",v:"inconnu"}])];
+      {l:"Inconnu — corps étranger ou implant non identifié",v:"inconnu"}])];
     return uHead(2)+this.qs.map(q=>q.html).join("")+uNav();
   },
   bind(){ uBindSimple(this); },
@@ -2077,11 +2120,14 @@ USTEPS[2]={
 };
 USTEPS[3]={
   render(){
-    this.qs=[QU("nature","Nature du dispositif","",[
-      {l:"Actif — possède une batterie ou une électronique",v:"actif"},
-      {l:"Passif — fonction mécanique, sans batterie",v:"passif"},
-      {l:"Fil, sonde ou électrode seule — y compris abandonnée",v:"fil"},
-      {l:"Je ne sais pas",v:"inconnue"}])];
+    const fb={l:"Corps étranger — éclat, projectile, fragment métallique (origine non médicale)",v:"etranger"};
+    const rest=[
+      {l:"Implant passif — fonction mécanique, sans batterie",v:"passif"},
+      {l:"Implant actif — possède une batterie ou une électronique",v:"actif"},
+      {l:"Fil, sonde ou électrode seule — y compris abandonnée",v:"fil"}];
+    const unk={l:"Je ne sais pas",v:"inconnue"};
+    const opts=U.ident==="inconnu"?[fb,...rest,unk]:U.ident==="connu_nodoc"?[...rest,fb,unk]:[...rest,unk];
+    this.qs=[QU("nature","Nature de l'implant",U.ident==="inconnu"?"Un objet non identifié peut être un corps étranger (éclat, projectile) ou un implant médical.":"",opts)];
     return uHead(4)+this.qs.map(q=>q.html).join("")+uNav();
   },
   bind(){ uBindSimple(this); },
@@ -2091,35 +2137,62 @@ USTEPS[4]={
   key:"actifType",
   skip:()=>U.nature!=="actif",
   render(){
-    this.qs=[QU("actifType","Type de dispositif actif","Détermine la programmation pré-examen et la surveillance nécessaires.",
+    this.qs=[QU("actifType","Type d'implant actif","Détermine la programmation pré-examen et la surveillance nécessaires.",
       Object.entries(U_ACTIF).map(([v,l])=>({l,v})))];
     return uHead()+this.qs.map(q=>q.html).join("")+uNav();
   },
   bind(){ uBindSimple(this); },
   ready:()=>!!U.actifType
 };
+/* Localisation : désignée tôt, car elle conditionne les questions suivantes
+   (type d'implant ou structure sensible proposés selon la région). */
 USTEPS[5]={
-  key:"taille",
-  skip:()=>!(U.ident==="inconnu"||U.nature==="inconnue"),
   render(){
-    this.qs=[QU("taille","Taille approximative","",[
-      {l:"Petit (< 2 cm — agrafe, éclat, grain de plomb)",v:"petit"},
-      {l:"Moyen (2 à 5 cm — vis, stent)",v:"moyen"},
-      {l:"Grand (> 5 cm — plaque, prothèse, fil)",v:"grand"},
-      {l:"Je ne sais pas",v:"inconnue"}])];
-    return uHead(5)+this.qs.map(q=>q.html).join("")+uNav();
+    return uHead(5,`Touchez l'endroit où se trouve l'implant. Tournez le mannequin pour préciser la profondeur en vue de profil. Pour une sonde ou un fil, touchez le point de son trajet le plus proche de l'isocentre.`)+`
+    <div class="mq">
+      <div class="mq-card">
+        <div class="mq-label" id="mqlabel"></div>
+        <div class="mq-stage" id="mqstage"></div>
+        <button type="button" class="mq-rot" id="mqrot">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+          Tourner le mannequin</button>
+      </div>
+      <div class="mq-side" id="mqread"></div>
+    </div>`+uNav();
   },
-  bind(){ uBindSimple(this); },
-  ready:()=>!!U.taille
+  bind(){
+    mqDraw();
+    $("mqrot").onclick=()=>{ const C=mqCtx(); C.view=(C.view+1)%MQ_VIEWS.length; mqDraw(); };
+    $("uprev").onclick=()=>goUBack(U.step);
+  },
+  ready:()=>!!U.pt
 };
+function mqReadout(){
+  const el=$("mqread"); if(!el) return;
+  const ex=HYP.exams[U.ex].n;
+  if(!U.pt){ el.innerHTML=`<div class="mq-k">Examen</div><div class="mq-v">${ex}</div>
+    <div class="mq-h">La ligne bleue marque l'isocentre de cet examen ; les lignes grises, l'entrée du tunnel.</div>`; return; }
+  const g=uGeom();
+  el.innerHTML=`<div class="mq-k">Examen</div><div class="mq-v">${ex}</div>
+    <div class="mq-k">Distance à l'isocentre</div><div class="mq-v"><b>${cm(g.z)} cm</b> le long du tunnel${g.inBore?"":" — hors du tunnel"}</div>
+    <div class="mq-k">Latéral</div><div class="mq-v">${U.pt.hasLr?sideTxt(g.x):'<span class="mq-miss">non précisé — vue de face ou de dos</span>'}</div>
+    <div class="mq-k">Profondeur</div><div class="mq-v">${U.pt.hasAp?apTxt(g.y):'<span class="mq-miss">non précisée — vue de profil</span>'}</div>
+    <div class="mq-h">Distances estimées pour ${g.m.assumedH?"un patient de 170 cm":"un patient de "+g.m.h+" cm"}${g.m.assumedW?"":", corpulence estimée depuis le poids"}.</div>`;
+}
+const U_REGION_N={tete:"la tête",cou:"le cou",thorax:"le thorax",abdomen:"l'abdomen",pelvis:"le pelvis",jambes:"le membre inférieur",bras:"le membre supérieur"};
 USTEPS[6]={
+  key:"struct",
+  skip:()=>U.nature==="actif"||U.nature==="fil",
   render(){
-    this.qs=[QU("struct","Structure au contact du dispositif","La position est désignée à l'étape suivante ; ici, ce qui l'entoure.",
-      Object.entries(U_STRUCT).map(([v,l])=>({l,v})))];
-    return uHead(6)+this.qs.map(q=>q.html).join("")+uNav();
+    const med=U.nature==="passif";
+    this.qs=[QU("struct",med?"Type d'implant passif":"Structure sensible à proximité",
+      med?`Proposé d'après la localisation désignée (${U_REGION_N[uRegion()]}).`
+         :"Un élément métallique qui se déplace est dangereux surtout au contact de l'œil, d'un gros vaisseau, du cerveau, de la moelle ou d'un nerf. Répondez d'après l'imagerie ou le contexte.",
+      uStructOpts())];
+    return uHead()+this.qs.map(q=>q.html).join("")+uNav();
   },
   bind(){ uBindSimple(this); },
-  ready:()=>!!U.struct
+  ready:()=>uStructOpts().some(o=>o.v===U.struct)
 };
 USTEPS[7]={
   key:"clipYear",
@@ -2155,55 +2228,59 @@ USTEPS[9]={
   ready:()=>!!U.orthoType
 };
 USTEPS[10]={
+  key:"taille",
+  skip:()=>!(U.ident==="inconnu"||U.nature==="inconnue"||U.nature==="etranger")||U.nature==="actif"||U.nature==="fil",
   render(){
-    return uHead(7,`Touchez l'endroit où se trouve le dispositif. Tournez le mannequin pour préciser la profondeur en vue de profil. Pour une sonde ou un fil, touchez le point de son trajet le plus proche de l'isocentre.`)+`
-    <div class="mq">
-      <div class="mq-card">
-        <div class="mq-label" id="mqlabel"></div>
-        <div class="mq-stage" id="mqstage"></div>
-        <button type="button" class="mq-rot" id="mqrot">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
-          Tourner le mannequin</button>
-      </div>
-      <div class="mq-side" id="mqread"></div>
-    </div>`+uNav();
+    this.qs=[QU("taille","Taille approximative de l'implant","Une radiographie ou un scanner permet de l'estimer.",[
+      {l:"Petit (< 2 cm — agrafe, éclat, grain de plomb)",v:"petit"},
+      {l:"Moyen (2 à 5 cm — vis, stent)",v:"moyen"},
+      {l:"Grand (> 5 cm — plaque, prothèse, fil)",v:"grand"},
+      {l:"Je ne sais pas",v:"inconnue"}])];
+    return uHead()+this.qs.map(q=>q.html).join("")+uNav();
   },
-  bind(){
-    mqDraw();
-    $("mqrot").onclick=()=>{ const C=mqCtx(); C.view=(C.view+1)%MQ_VIEWS.length; mqDraw(); };
-    $("uprev").onclick=()=>goUBack(U.step);
-  },
-  ready:()=>!!U.pt
+  bind(){ uBindSimple(this); },
+  ready:()=>!!U.taille
 };
-function mqReadout(){
-  const el=$("mqread"); if(!el) return;
-  const ex=HYP.exams[U.ex].n;
-  if(!U.pt){ el.innerHTML=`<div class="mq-k">Examen</div><div class="mq-v">${ex}</div>
-    <div class="mq-h">La ligne bleue marque l'isocentre de cet examen ; les lignes grises, l'entrée du tunnel.</div>`; return; }
-  const g=uGeom();
-  el.innerHTML=`<div class="mq-k">Examen</div><div class="mq-v">${ex}</div>
-    <div class="mq-k">Distance à l'isocentre</div><div class="mq-v"><b>${cm(g.z)} cm</b> le long du tunnel${g.inBore?"":" — hors du tunnel"}</div>
-    <div class="mq-k">Latéral</div><div class="mq-v">${U.pt.hasLr?sideTxt(g.x):'<span class="mq-miss">non précisé — vue de face ou de dos</span>'}</div>
-    <div class="mq-k">Profondeur</div><div class="mq-v">${U.pt.hasAp?apTxt(g.y):'<span class="mq-miss">non précisée — vue de profil</span>'}</div>
-    <div class="mq-h">Distances estimées pour ${g.m.assumedH?"un patient de 170 cm":"un patient de "+g.m.h+" cm"}${g.m.assumedW?"":", corpulence estimée depuis le poids"}.</div>`;
+/* Alliage : demandé seulement quand il change la réponse — implant ou corps
+   étranger dont le matériau n'est pas déjà couvert par une règle (stents,
+   vasculaire, orthopédie, clips, implants cardiaques) ou par une documentation. */
+function uNeedAlloy(){
+  if(U.compat==="conditionnel_precis") return false;
+  if(!["passif","etranger","inconnue"].includes(U.nature)) return false;
+  return U.ident==="inconnu"||U.nature==="etranger"||U.nature==="inconnue"||U.struct==="oeil"||(U.nature==="passif"&&U.struct==="autre");
 }
 USTEPS[11]={
+  key:"alloy",
+  skip:()=>!uNeedAlloy(),
+  render(){
+    this.qs=[QU("alloy","Alliage ou matériau de l'implant","Il détermine le risque de déplacement dans le champ B0. Sources fiables : compte rendu opératoire, carte ou fabricant de l'implant, équipe qui l'a posé ; pour un corps étranger, circonstances de l'accident. <strong>La radiographie et le scanner donnent la position, la taille et la densité — pas l'alliage.</strong>",[
+      {l:"Ferromagnétique ou probable — fer, nickel, cobalt, acier, éclat d'obus, projectile perforant, copeaux de meulage ou de soudure",v:"ferro"},
+      {l:"Non ferromagnétique — titane, plomb, cuivre…",v:"nonferro"},
+      {l:"Non métallique",v:"nonmetal"},
+      {l:"Inconnu",v:"inconnu"}])];
+    return uHead()+this.qs.map(q=>q.html).join("")+uNav();
+  },
+  bind(){ uBindSimple(this); },
+  ready:()=>!!U.alloy
+};
+USTEPS[12]={
   render(){
     this.qs=[QU("mobile","Ancienneté / fixité","Objectivable via le dossier ou l'imagerie, sans que le patient ait besoin de répondre.",[
       {l:"Ancien / fixe (visible sur une imagerie antérieure, contexte non traumatique récent)",v:"ancien"},
       {l:"Récent / potentiellement mobile (corps étranger post-traumatique récent, migration non exclue)",v:"recent"},
       {l:"Je ne sais pas",v:"inconnu"}])];
-    return uHead(8)+this.qs.map(q=>q.html).join("")+uNav("Voir l'orientation");
+    return uHead()+this.qs.map(q=>q.html).join("")+uNav("Voir l'orientation");
   },
   bind(){ uBindSimple(this); },
   ready:()=>!!U.mobile
 };
 
-USTEPS[12]={
+USTEPS[13]={
   render(){
     const tier=uTier(), M=uMotifs(), E=tier<3?uEnergies():[];
     const actifDoc=U.nature==="actif"&&U.compat==="conditionnel_precis";
-    const hi=E.filter(e=>e.lv===2&&!e.info).map(e=>e.n.toLowerCase());
+    const hi=E.filter(e=>e.lv===2&&!e.info).map(e=>e.n.charAt(0).toLowerCase()+e.n.slice(1));
+    const hiDisp=E.some(e=>(e.k==="B0"||e.k==="dB/dx")&&e.lv===2&&!e.info);
     const M2=M.filter(x=>x.t===2), M3=M.find(x=>x.t===3);
     const sar=tier<3?uSarNote():null;
     const cfg={
@@ -2214,15 +2291,17 @@ USTEPS[12]={
       1:{c:"--r1",bg:"--r1bg",t:"Réalisable avec précautions ciblées",
          b:"Aucun mécanisme n'atteint un niveau élevé. Appliquer les précautions indiquées pour les énergies signalées, et en informer le médecin radiologue responsable."},
       2:{c:"--r2",bg:"--r2bg",t:"Avis du médecin radiologue requis avant de démarrer",
-         b:(M2.length?"Des éléments doivent être validés avant l'examen (voir ci-dessous). ":"")+(hi.length?`Niveau élevé pour : ${hi.join(", ")}. `:"")+"Contacter le médecin radiologue responsable avant d'installer le patient."},
+         b:(M2.length?"Des éléments doivent être validés avant l'examen (voir ci-dessous). ":"")+(hi.length?`Niveau élevé pour : ${hi.join(" ; ")}. `:"")+(hiDisp?"Le risque principal est le déplacement de l'implant sous l'effet du champ statique (couple et gradient spatial de B0). ":"")+"Contacter le médecin radiologue responsable avant d'installer le patient."},
       3:{c:"--r4",bg:"--r4bg",t:"IRM non recommandée",
          b:"En l'état des informations disponibles, l'IRM n'est pas recommandée. Voir ci-dessous pourquoi, et ce qui permettrait de reconsidérer l'examen."}
     }[tier];
     const g=uGeom();
     const manque=[];
-    if(!["conditionnel_precis","non_compatible"].includes(U.compat)&&!["coronaire","valve"].includes(U.struct)&&!(U.struct==="clip"&&U.clipYear==="2000")) manque.push("documentation ou carte du dispositif (conditions IRM précises)");
-    if(U.taille==="inconnue") manque.push("taille du matériel");
-    if(U.pt&&!U.pt.hasAp) manque.push("profondeur du dispositif (vue de profil)");
+    if(!["conditionnel_precis","non_compatible"].includes(U.compat)&&!["coronaire","valve"].includes(U.struct)&&!(U.struct==="clip"&&U.clipYear==="2000")) manque.push("documentation ou carte de l'implant (conditions IRM précises)");
+    if(U.taille==="inconnue") manque.push("taille de l'implant");
+    if(U.alloy==="inconnu") manque.push("alliage de l'implant (compte rendu opératoire, fabricant, circonstances)");
+    if(U.struct==="inconnu_site") manque.push("structure voisine (vaisseau, nerf, œil), à préciser sur l'imagerie");
+    if(U.pt&&!U.pt.hasAp) manque.push("profondeur de l'implant (vue de profil)");
     if(U.pt&&!U.pt.hasLr) manque.push("position latérale (vue de face)");
     if(g.m.assumedW) manque.push("poids du patient");
     const conseils=[...new Set(E.filter(e=>e.lv>=1&&!e.info).map(e=>e.conseil))];
@@ -2242,7 +2321,7 @@ USTEPS[12]={
     <div class="note">Si l'examen devait malgré tout être réalisé, la décision relève exclusivement du médecin radiologue responsable de l'IRM, avec documentation explicite de la justification et du bénéfice attendu.</div>`:`
     ${M2.map(x=>motifBlock(x,"À faire valider","Avant l'examen")).join("")}
     ${sar?`<div class="eyebrow">Condition d'examen</div><div class="mit"><div class="mit-k">SAR</div><div class="mit-b">${sar}${["coronaire","valve"].includes(U.struct)?" Pas de contrainte de gradient spatial ; 15 minutes maximum par séquence, plusieurs séquences possibles.":""}</div></div>`:""}
-    ${U.nature==="actif"?`<div class="eyebrow">Dispositif actif — avant l'examen</div>
+    ${U.nature==="actif"?`<div class="eyebrow">Implant actif — avant l'examen</div>
     ${uActifSteps().map(t=>`<div class="mit"><div class="mit-b">${t}</div></div>`).join("")}`:""}
     <div class="eyebrow">Énergie par énergie</div>
     <div class="uen">${E.length&&E.every(e=>e.why===E[0].why&&e.lv===E[0].lv)?`<div class="uen-r">
@@ -2278,6 +2357,7 @@ USTEPS[12]={
 
 function goU(n){
   /* une question sautée ne doit pas laisser derrière elle une ancienne réponse */
+  if(U.struct&&!uStructOpts().some(o=>o.v===U.struct)) U.struct=null;   // la région ou la nature a changé
   USTEPS.forEach(s=>{ if(s.key&&s.skip&&s.skip()) U[s.key]=null; });
   while(USTEPS[n]&&USTEPS[n].skip&&USTEPS[n].skip()) n++;
   VIEW="urgence"; U.step=n;
