@@ -422,7 +422,7 @@ function reset(){
      len:null,insul:null,multi:null,sink:null,pathIn:null,
      tattoo:false,tattooAge:null,tattooSize:null,
      scores:[null,null,null,null],detail:[[],[],[],[]],
-     mitig:[],trace:[],tab:"B1"};
+     mitig:[],trace:[],tab:"B1",hist:[],cur:null,snap:{}};
 }
 reset();
 const $=id=>document.getElementById(id);
@@ -510,6 +510,7 @@ function bindQ(q){
       const o=q.opts[+b.dataset.i];
       S[q.key]=o.v; log(q.label,o.l);
       if(q.key==="kind") S.tattoo=(o.v==="tatouage");
+      if(q.after) q.after(o.v);
       const n=$("next"); if(n) n.disabled=!STEPS[S.step].ready();
     };
   });
@@ -685,12 +686,14 @@ STEPS[0]={
     <li>La décision finale relève du <strong>médecin radiologue responsable de l'IRM</strong>, le seul à même de mettre le risque en balance avec le bénéfice attendu, au vu de l'ensemble du contexte clinique.</li>
     <li>L'outil <strong>n'engage aucune responsabilité médicale</strong>. La responsabilité de l'analyse, de son interprétation et de sa documentation reste entièrement celle du professionnel qui l'utilise.</li>
     <li>Les représentations spatiales sont <strong>schématiques et indicatives</strong>. Ce ne sont pas des cartographies de champ, et elles ne remplacent ni l'étiquetage du constructeur ni les conditions d'utilisation propres au dispositif.</li>
-    <li>Certaines configurations — dispositifs multiples, mailles, grilles, matériel inconnu, géométries inhabituelles — <strong>ne sont pas couvertes</strong>. Le recours à un physicien ou expert en sécurité IRM peut être nécessaire.</li>
+    <li>Certaines configurations — dispositifs multiples, mailles, grilles, matériel inconnu, géométries inhabituelles — <strong>ne sont pas couvertes</strong>. Si votre situation est complexe, n'hésitez pas à <a href="#" id="gate-contact" style="color:var(--accent);text-decoration:underline">contacter directement un expert en sécurité IRM</a>.</li>
     <li>En cas de doute sur une réponse, retenir systématiquement <strong>l'option la plus restrictive</strong>.</li>
+
   </ul>
   <label class="chk"><input type="checkbox" id="ok"><span>J'ai lu et j'accepte ces conditions. Je comprends que cet outil ne remplace pas l'avis médical.</span></label></div>
   <div class="actions"><button class="act" id="next" disabled>Commencer l'analyse</button></div>`,
-  bind(){ $("ok").onchange=e=>{S.accepted=e.target.checked;$("next").disabled=!this.ready();}; },
+  bind(){ $("ok").onchange=e=>{S.accepted=e.target.checked;$("next").disabled=!this.ready();};
+    $("gate-contact").onclick=e=>{ e.preventDefault(); goContact(); }; },
   ready:()=>S.accepted
 };
 
@@ -732,8 +735,18 @@ STEPS[1]={
 };
 
 /* 2 — dispositif */
+/* Un corps étranger, un tatouage ou un dispositif non identifié n'a pas
+   d'étiquetage constructeur : la question n'a pas lieu d'être. */
+const NO_LABEL=["etranger","tatouage","inconnu"];
+function syncLabel(kind){
+  const el=$("q-lab");
+  if(NO_LABEL.includes(kind)){ S.label="none"; S.labAuto=true; }
+  else if(S.labAuto){ S.label=null; S.labAuto=false; if(el) el.querySelectorAll(".opt").forEach(x=>x.classList.remove("on")); }
+  if(el) el.style.display=NO_LABEL.includes(kind)?"none":"";
+}
 STEPS[2]={
   render(){
+    if(NO_LABEL.includes(S.kind)){ S.label="none"; S.labAuto=true; }
     this.qs=[
       Q("kind","Nature du dispositif","",[
         {l:"Implant passif métallique (prothèse, clip, stent, vis)",v:"passif"},
@@ -749,6 +762,7 @@ STEPS[2]={
         {l:"Aucun étiquetage disponible",v:"none"},
         {l:"Étiquetage non retrouvé à ce stade",v:"unknown"}])
     ];
+    this.qs[0].after=v=>{ syncLabel(v); };
     return `<h2>Identification du dispositif</h2>
     <div class="sub">Une seule analyse par dispositif. Si le patient en porte plusieurs, reprendre l'analyse pour chacun.</div>
     ${this.qs[0].html}
@@ -764,7 +778,7 @@ STEPS[2]={
       </div>
       <div class="mq-side" id="mqread"></div>
     </div>
-    ${this.qs[1].html}
+    <div id="q-lab"${NO_LABEL.includes(S.kind)?' style="display:none"':""}>${this.qs[1].html}</div>
     <div class="actions"><button class="act" id="next"${STEPS[2].ready()?"":" disabled"}>Suivant</button></div>`;
   },
   bind(){ bindAll(this.qs);
@@ -821,27 +835,33 @@ STEPS[3]={
 /* 4 — propriétés */
 STEPS[4]={
   render(){
-    this.qs=[
-      Q("ferro","Le dispositif est-il ferromagnétique ?",
+    /* « linéaire » se déduit de la nature : une sonde l'est par définition,
+       un tatouage ne l'est pas */
+    const lin=S.kind==="sonde"?"yes":S.kind==="tatouage"?"no":null;
+    if(lin){ S.linear=lin; S.linAuto=true; } else if(S.linAuto){ S.linear=null; S.linAuto=false; }
+    const ferroQ=Q("ferro","Le dispositif est-il ferromagnétique ?",
         "Autrement dit : subira-t-il une rotation ou un déplacement marqué en champ fort ? En cas de matériau non documenté, répondre « inconnu ».",
-        [{l:"Non — non ferromagnétique",v:"no"},{l:"Oui, ou fortement suspecté",v:"yes"},{l:"Inconnu",v:"unknown"}]),
+        [{l:"Non — non ferromagnétique",v:"no"},{l:"Oui, ou fortement suspecté",v:"yes"},{l:"Inconnu",v:"unknown"}]);
+    ferroQ.after=v=>{ const el=$("q-anch"); if(el) el.style.display=v==="no"?"none":""; };
+    this.qs=[
+      ferroQ,
       Q("cond","Le dispositif est-il électriquement conducteur ?",
         "La quasi-totalité des implants métalliques le sont, y compris non ferromagnétiques. Les pigments de tatouage peuvent l'être.",
         [{l:"Oui",v:"yes"},{l:"Non",v:"no"},{l:"Inconnu",v:"unknown"}],true),
       Q("anchored","Le dispositif est-il ancré ou fibrosé de façon stable ?",
         "Un implant ancien, encapsulé ou vissé dans l'os est considéré comme ancré. Un corps étranger libre ou un implant récent ne l'est pas.",
         [{l:"Oui — ancré, fibrosé, ou de masse négligeable",v:"yes"},{l:"Non — mobile, récent, ou dans un tissu sensible",v:"no"},{l:"Inconnu",v:"unknown"}]),
-      Q("linear","Le dispositif est-il linéaire ?",
+      ...(lin?[]:[Q("linear","Le dispositif est-il linéaire ?",
         "Fil, sonde, électrode, cathéter, ou tout conducteur allongé. Une prothèse compacte ne l'est pas.",
-        [{l:"Oui — conducteur allongé",v:"yes"},{l:"Non — compact",v:"no"}],true)
+        [{l:"Oui — conducteur allongé",v:"yes"},{l:"Non — compact",v:"no"}],true)])
     ];
     return `<h2>Propriétés du dispositif</h2>
-    <div class="sub">Ces quatre caractéristiques déterminent à quels mécanismes physiques le dispositif est sensible.</div>
-    ${this.qs.map(q=>q.html).join("")}
+    <div class="sub">Ces caractéristiques déterminent à quels mécanismes physiques le dispositif est sensible. L'ancrage n'est demandé que si le matériau est ferromagnétique ou de ferromagnétisme inconnu.</div>
+    ${this.qs.map((q,i)=>i===2?`<div id="q-anch"${S.ferro==="no"?' style="display:none"':""}>${q.html}</div>`:q.html).join("")}
     <div class="actions"><button class="act" id="next"${this.ready()?"":" disabled"}>Voir la position dans l'aimant</button></div>`;
   },
   bind(){ bindAll(this.qs); },
-  ready:()=>S.ferro&&S.cond&&S.anchored&&S.linear
+  ready:()=>S.ferro&&S.cond&&(S.ferro=="no"||S.anchored)&&S.linear
 };
 
 /* 5 — vue spatiale */
@@ -863,8 +883,8 @@ STEPS[5]={
     <div class="read" id="read"></div>
     <div class="note" id="msg"></div>
     <details><summary>Hypothèses de construction</summary><div class="dbody" id="assump"></div></details>
-    <div class="actions"><button class="act" id="next">Analyser les forces mécaniques</button>
-      <button class="gh" id="back">Modifier les paramètres</button></div>`;
+    <div class="actions"><button class="gh" id="back">Modifier les paramètres</button>
+      <button class="act" id="next">Analyser les forces mécaniques</button></div>`;
   },
   bind(){
     const redraw=()=>{
@@ -926,12 +946,15 @@ STEPS[5]={
 
 /* 6 — forces mécaniques : B0 + dB/dx */
 STEPS[6]={
+  /* non ferromagnétique et non conducteur (et passif) : aucune force à évaluer,
+     la question n'a pas lieu d'être — les scores sont calculés sans l'afficher */
+  skip:()=>S.ferro==="no"&&S.cond==="no"&&S.kind!=="actif",
   render(){
-    const qs=[];
-    if(S.anchored!=="yes") qs.push(Q("securable",`Le dispositif (${devShort()}) peut-il être immobilisé avant l'entrée en zone IV ?`,
+    const qs=[], fer=S.ferro!=="no";
+    if(fer&&S.anchored!=="yes") qs.push(Q("securable",`Le dispositif (${devShort()}) peut-il être immobilisé avant l'entrée en zone IV ?`,
       "Bandage compressif, contention externe, immobilisation mécanique.",
       [{l:"Oui",v:"yes"},{l:"Non",v:"no"}],true));
-    qs.push(Q("tissue",`Le dispositif (${devShort()}) est-il au contact d'un tissu où un déplacement serait dangereux ?`,
+    if(fer) qs.push(Q("tissue",`Le dispositif (${devShort()}) est-il au contact d'un tissu où un déplacement serait dangereux ?`,
       "Structure vasculaire, tissu nerveux, œil, parenchyme pulmonaire, voisinage cardiaque.",
       [{l:"Non",v:"no"},{l:"Oui",v:"yes"},{l:"Inconnu",v:"unknown"}],true));
     if(S.cond!=="no") qs.push(Q("slow","Le déplacement du patient dans le tunnel peut-il être ralenti et contrôlé ?",
@@ -947,14 +970,16 @@ STEPS[6]={
     }
     this.qs=qs;
     return `<h2>Forces mécaniques <em>B0 · dB/dx</em></h2>
-    <div class="sub">Le champ statique exerce un couple de rotation, homogène dans tout le volume d'imagerie et présent en permanence. Le gradient spatial exerce une force de translation, proche de zéro à l'isocentre et maximale aux extrémités du tunnel — le moment critique est donc le passage du patient, pas l'acquisition.</div>
+    <div class="sub">${fer?"Le champ statique exerce un couple de rotation, homogène dans tout le volume d'imagerie et présent en permanence. Le gradient spatial exerce une force de translation, proche de zéro à l'isocentre et maximale aux extrémités du tunnel — le moment critique est donc le passage du patient, pas l'acquisition.":"Le matériau n'est pas ferromagnétique : ni couple de rotation ni force de translation significatifs, donc pas de question sur l'ancrage ni sur le voisinage tissulaire. Il reste le déplacement dans le champ, qui induit des courants dans tout matériau conducteur (forces de Lenz)."}</div>
     ${qs.map(q=>q.html).join("")}
     <div class="actions"><button class="act" id="next"${this.ready()?"":" disabled"}>Suivant</button></div>`;
   },
   bind(){ bindAll(this.qs); },
   ready(){
-    if(S.anchored!=="yes"&&!S.securable) return false;
-    if(!S.tissue) return false;
+    if(S.ferro!=="no"){
+      if(S.anchored!=="yes"&&!S.securable) return false;
+      if(!S.tissue) return false;
+    }
     if(S.cond!=="no"&&!S.slow) return false;
     if(S.kind==="actif"&&!(S.funcB0&&S.dependent)) return false;
     return true;
@@ -993,6 +1018,9 @@ STEPS[6]={
 
 /* 7 — dB/dt */
 STEPS[7]={
+  /* matériau non conducteur : aucun courant induit ; tatouage : ni vibration ni
+     extrémité excitable — les questions n'ont pas lieu d'être */
+  skip:()=>S.cond==="no"||S.tattoo,
   render(){
     const e=expo("dB/dt"), b=bImp(), qs=[];
     if(S.linear==="yes"){
@@ -1109,25 +1137,30 @@ function helpCoil(){
 
 /* 8 — B1 */
 STEPS[8]={
+  /* matériau non conducteur : aucun couplage radiofréquence */
+  skip:()=>S.cond==="no",
   render(){
     const F=FREQ[S.B], e=expo("B1"), rl=radialLevel(), b=bImp();
-    const qs=[
-      Q("len",`Longueur totale du trajet conducteur (${devShort()})`,
+    /* tatouage : seuls l'ancienneté, l'étendue et le refroidissement comptent.
+       Isolation : sans objet pour un objet compact. */
+    const qs=[];
+    if(!S.tattoo){
+      qs.push(Q("len",`Longueur totale du trajet conducteur (${devShort()})`,
         `À ${MAG[S.B]} (${F.f} MHz), la longueur résonante en tissu est de l'ordre de ${F.Lr} cm. Le risque est maximal <em>au voisinage</em> de cette longueur — et la résonance est périodique, elle se reproduit sur les harmoniques.`,
         [{l:`Nettement inférieure à ${F.Lt} cm`,v:"short"},
          {l:`Proche de ${F.Lr} cm`,v:"resonant",t:"zone critique"},
          {l:`Supérieure à ${F.Lt} cm`,v:"long",t:"harmonique possible"},
-         {l:"Longueur inconnue",v:"unknown"}]),
-      Q("insul","Isolation du conducteur","Une isolation épaisse réduit l'échauffement à l'extrémité pour les conducteurs courts.",
+         {l:"Longueur inconnue",v:"unknown"}]));
+      if(S.linear==="yes") qs.push(Q("insul","Isolation du conducteur","Une isolation épaisse réduit l'échauffement à l'extrémité pour les conducteurs courts.",
         [{l:"Isolé, extrémité dénudée",v:"insul"},{l:"Isolation épaisse ou double",v:"thick"},
-         {l:"Conducteur nu",v:"bare"},{l:"Inconnue",v:"unknown"}]),
-      Q("multi",`Conducteurs multiples, croisés, ou en boucle (${devShort()})`,"Plusieurs sondes, mailles, treillis, ou boucle fermée susceptible d'entrer en résonance.",
+         {l:"Conducteur nu",v:"bare"},{l:"Inconnue",v:"unknown"}]));
+      qs.push(Q("multi",`Conducteurs multiples, croisés, ou en boucle (${devShort()})`,"Plusieurs sondes, mailles, treillis, ou boucle fermée susceptible d'entrer en résonance.",
         [{l:"Non — conducteur unique",v:"no"},{l:"Oui — multiples ou croisés",v:"multi"},
-         {l:"Oui — boucle fermée",v:"loop"},{l:"Inconnu",v:"unknown"}]),
-      Q("sink","Un dissipateur thermique peut-il être mis en place ?",
+         {l:"Oui — boucle fermée",v:"loop"},{l:"Inconnu",v:"unknown"}]));
+    }
+    qs.push(Q("sink","Un dissipateur thermique peut-il être mis en place ?",
         "Compresse froide ou poche de gel au contact du point d'échauffement attendu, notamment l'extrémité dénudée.",
-        [{l:"Oui",v:"yes"},{l:"Non",v:"no"}],true)
-    ];
+        [{l:"Oui",v:"yes"},{l:"Non",v:"no"}],true));
     if(S.linear==="yes"&&e<2) qs.unshift(Q("pathIn",
       `Le trajet du conducteur atteint-il le volume d'émission ?`,
       `Déterminant, et la géométrie ne peut pas y répondre seule. Une sonde de stimulateur cardiaque descend vers le cœur, donc s'éloigne d'une antenne tête. Une extension de neurostimulateur profond remonte vers le crâne, donc y entre. Un cathéter de pompe abdominale remonte le rachis. Le corps du dispositif peut être hors du volume alors que le conducteur y plonge.`,
@@ -1162,7 +1195,7 @@ STEPS[8]={
     });
   },
   ready(){
-    let b=S.len&&S.insul&&S.multi&&S.sink;
+    let b=S.sink&&(S.tattoo||(S.len&&S.multi&&(S.linear!=="yes"||S.insul)));
     if(S.linear==="yes"&&expo("B1")<2&&!S.pathIn) b=false;
     return S.tattoo?(b&&S.tattooAge&&S.tattooSize):!!b;
   },
@@ -1239,13 +1272,15 @@ STEPS[9]={
       "Le niveau de risque estimé est élevé sur au moins un champ. Cette analyse doit être discutée avec le médecin radiologue responsable de l'IRM avant toute décision, avec mise en balance explicite du bénéfice attendu et examen des alternatives d'imagerie.",
       "Le niveau de risque estimé est majeur, ou des éléments déterminants restent non résolus. Ne pas poursuivre sans décision explicite du médecin radiologue responsable de l'IRM. Le recours à un expert en sécurité IRM est recommandé, notamment si l'incertitude porte sur l'identification du dispositif."
     ][max];
+    const actifRef=S.kind==="actif"&&S.label==="cond"&&S.complies==="yes";
+    const msg2=actifRef?"<strong>Se référer aux conditions techniques du fabricant : elles font foi, et cet outil n'y déroge pas.</strong> Examen réalisable uniquement dans ces conditions, après programmation pré-examen. Voir les mesures ci-dessous.":msg;
     const unk=S.trace.filter(t=>/inconnu|non détermin|non retrouv|non vérifiab|non identifi/i.test(t[1]));
     return `<h2>Synthèse de l'analyse</h2>
     <div class="sub">Le niveau global retenu est le plus élevé des quatre champs. Un seul mécanisme suffit à porter le risque.</div>
     <div class="verdict" style="background:var(${sc.bg});border-color:var(${sc.c})">
-      <div class="verdict-k" style="color:var(${sc.c})">Niveau ${max} sur 4 · déterminé par ${worst.k}</div>
-      <div class="verdict-t" style="color:var(${sc.c})">${sc.n}</div>
-      <div class="verdict-b" style="color:var(${sc.c})">${msg}</div></div>
+      <div class="verdict-k" style="color:var(${sc.c})">${actifRef?"Implant actif · conditions du fabricant":`Niveau ${max} sur 4 · déterminé par ${worst.k}`}</div>
+      <div class="verdict-t" style="color:var(${sc.c})">${actifRef?"Aucune adaptation de l'outil : le fabricant fait foi":sc.n}</div>
+      <div class="verdict-b" style="color:var(${sc.c})">${msg2}</div></div>
     <div class="scale">${SCALE.map((x,i)=>`<div style="color:var(${x.c});${i===max?`background:var(${x.bg});font-weight:600`:""}">${i} · ${x.s}</div>`).join("")}</div>
     <div class="eyebrow">Configuration analysée</div>
     <div class="note"><strong>${MAG[S.B]} · ${HYP.exams[S.ex].n} · ${POS[S.pos]}, ${ENT[S.ent].toLowerCase()} · patient de ${S.h} cm.</strong>
@@ -1270,14 +1305,14 @@ STEPS[9]={
       <p class="expert-b">Cet outil ne couvre pas toutes les configurations : dispositifs multiples, mailles et treillis, géométries inhabituelles, matériel non identifié. Si votre cas sort du cadre, ou si vous voulez confronter cette analyse à un avis d'expert en sécurité IRM, vous pouvez la lui adresser avec son contexte.</p>
       <p class="expert-w"><strong>Ce n'est pas un canal d'urgence.</strong> N'attendez pas de réponse pour décider : la décision revient au médecin radiologue responsable de l'IRM, maintenant comme après.</p>
       <div class="actions" style="margin-top:16px;padding-top:0;border:none">
-        <button class="act" id="mail">Envoyer ce cas à un expert</button>
-        <button class="gh" id="cascopy">Copier le résumé du cas</button></div>
+        <button class="gh" id="cascopy">Copier le résumé du cas</button>
+      <button class="act" id="mail">Envoyer ce cas à un expert</button></div>
       <p class="expert-w" style="margin-top:14px">Si le bouton n'ouvre pas votre messagerie — poste sans client de messagerie configuré — copiez le résumé et envoyez-le à ${CONTACT.email?`<span class="mono-sel">${CONTACT.email}</span>`:"l'adresse de contact"}.</p>
     </div>
-    <div class="actions"><button class="act" id="copy">Copier pour le dossier</button>
-      <button class="gh" id="incident">Déclarer un incident</button>
+    <div class="actions"><button class="gh" id="incident">Déclarer un incident</button>
       <button class="gh" id="restart">Nouvelle analyse</button>
-      <button class="gh" id="uhome">Accueil</button></div>`;
+      <button class="gh" id="uhome">Accueil</button>
+      <button class="act" id="copy">Copier pour le dossier</button></div>`;
   },
   bind(){
     $("restart").onclick=()=>{ reset(); go(0); };
@@ -1413,20 +1448,55 @@ function drawSources(){
   </div></details>`;
 }
 
-function go(n){
-  while(STEPS[n]&&STEPS[n].skip&&STEPS[n].skip()) n++;
+/* Valide une étape : calcule ses scores et ses mesures. Idempotent — si
+   l'utilisateur revient en arrière, les mesures ajoutées par cette étape et
+   les suivantes sont retirées avant d'être recalculées. */
+function commitStep(n){
+  if(S.snap[n]!==undefined&&S.snap[n]<S.mitig.length) S.mitig.length=S.snap[n];
+  S.snap[n]=S.mitig.length;
+  STEPS[n].done&&STEPS[n].done();
+  if(STEPS[n].score) STEPS[n].score().forEach(r=>{ S.scores[r.i]=r.s; S.detail[r.i]=r.w; });
+}
+/* Implant actif : on ne déroge pas aux conditions du fabricant. Sans
+   documentation, ou si une condition ne peut être respectée, ou si elle n'est
+   pas vérifiable, l'IRM n'est pas recommandée ; documenté et conforme, le
+   fabricant fait foi. Aucun calcul générique ne remplace ces conditions. */
+function actifVerdict(kind){
+  const set=(v,t)=>{ S.scores=[v,v,v,v]; S.detail=[0,1,2,3].map(()=>[t]); };
+  if(kind==="ok"){
+    set(0,"Implant actif étiqueté MR Conditional, conditions du fabricant respectées : le fabricant fait foi.");
+    S.mitig.push(["Conditions du fabricant","Se référer aux conditions techniques du fabricant : elles font foi, et cet outil n'y déroge pas."],
+      ["Programmation pré-examen","Programmation pré-examen selon les instructions du fabricant, par le service référent, et reprogrammation après l'examen."],
+      ["Stimulateur ou défibrillateur cardiaque","Monitoring ECG et SpO₂ pendant tout l'examen ; matériel de réanimation et personnel formé à disposition hors de la salle d'aimant."]);
+    return;
+  }
+  const t=kind==="sansdoc"?"Implant actif sans documentation du fabricant : l'IRM n'est pas recommandée (une programmation pré-examen est nécessaire dans la majorité des cas, impossible sans connaître le modèle)."
+    :kind==="non"?"Au moins une condition du fabricant ne peut être respectée : l'outil ne déroge pas aux conditions d'un implant actif."
+    :"Conditions du fabricant non vérifiables à ce stade : à lever avant toute décision. L'outil ne déroge pas aux conditions d'un implant actif.";
+  set(4,t);
+  S.mitig.push(["Documentation","Obtenir la carte patient, le dossier ou la fiche du centre implanteur, et contacter le référent de l'implant avant toute décision."]);
+}
+function goBack(){ const p=S.hist.pop(); if(p!=null) go(p,true); }
+function go(n,isBack){
+  while(STEPS[n]&&STEPS[n].skip&&STEPS[n].skip()){ if(!isBack) commitStep(n); n++; }
   VIEW="expert";
-  S.step=n;
+  if(!isBack&&S.cur!=null&&S.cur!==n) S.hist.push(S.cur);
+  S.cur=n; S.step=n;
   $("main").innerHTML=STEPS[n].render();
   drawFields();
   drawSources();
   STEPS[n].bind&&STEPS[n].bind();
   const nx=$("next");
+  /* « Précédent » : secondaire, placé avant le bouton qui fait avancer */
+  if(S.hist.length&&!$("eback")){
+    const acts=[...document.querySelectorAll("#main .actions")].pop();
+    if(acts){ const bt=document.createElement("button"); bt.type="button"; bt.className="gh"; bt.id="eback"; bt.textContent="Précédent";
+      bt.onclick=goBack; acts.insertBefore(bt,acts.firstChild); }
+  }
   if(nx){
     nx.disabled=!STEPS[n].ready();
     nx.onclick=()=>{
-      STEPS[n].done&&STEPS[n].done();
-      if(STEPS[n].score) STEPS[n].score().forEach(r=>{ S.scores[r.i]=r.s; S.detail[r.i]=r.w; });
+      commitStep(n);
       if(n===2&&S.label==="safe"){
         S.scores=[0,0,0,0];
         S.detail=[0,1,2,3].map(()=>["Étiquetage MR Safe vérifié."]);
@@ -1438,6 +1508,10 @@ function go(n){
         S.detail=[0,1,2,3].map(()=>["Étiquetage MR Unsafe : dispositif explicitement contre-indiqué en environnement IRM."]);
         S.mitig.push(["Documentation","Consigner l'étiquetage MR Unsafe et la décision du médecin radiologue responsable de l'IRM dans le dossier du patient."]);
         return go(9);
+      }
+      if(S.kind==="actif"){
+        if(n===2&&(S.label==="none"||S.label==="unknown")){ actifVerdict("sansdoc"); return go(9); }
+        if(n===3){ actifVerdict(S.complies==="yes"?"ok":S.complies==="no"?"non":"inverif"); return go(9); }
       }
       go(n+1);
     };
@@ -1516,9 +1590,8 @@ function goContact(){
   <div class="sub">Expert en sécurité IRM (${CONTACT.titre}). Pour un avis ponctuel, une question de sécurité IRM, ou toute remarque sur cet outil.</div>
   <div class="note"><strong>Ce n'est pas un canal d'urgence.</strong> N'attendez pas de réponse pour décider : la décision d'examen revient au médecin radiologue responsable de l'IRM, maintenant comme après.</div>
   <div class="actions">
-    <button class="act" id="ctmail">Écrire un message</button>
     <button class="gh" id="uhome">Accueil</button>
-  </div>`;
+      <button class="act" id="ctmail">Écrire un message</button></div>`;
   $("ctmail").onclick=()=>{
     if(!CONTACT.email){ alert("Aucune adresse de contact n'est configurée dans ce fichier pour le moment."); return; }
     window.location.href=`mailto:${CONTACT.email}?subject=${encodeURIComponent("Sécurité IRM — contact")}`;
@@ -1913,7 +1986,7 @@ const U_ACTIF={
 const U_REFERENT={cardiaque:"la cardiologie / rythmologie",neuro:"le neurologue ou le centre implanteur",cochleaire:"l'ORL ou le centre implanteur",pompe:"le service référent de la pompe",capsule:"le service de gastro-entérologie",autre:"le service référent de l'implant"};
 function uActifSteps(){
   const mag=MAG[U.B], t=U.actifType||"autre", s=[];
-  s.push(`Vérifier que <strong>l'ensemble du système</strong> (boîtier, sondes ou électrodes, extensions) est étiqueté conditionnel, et que ${mag}, l'antenne et le SAR prévus figurent dans les conditions.`);
+  s.push(`<strong>Se référer aux conditions techniques du fabricant</strong> : aucune adaptation de l'outil ne s'y substitue. Vérifier que <strong>l'ensemble du système</strong> (boîtier, sondes ou électrodes, extensions) est étiqueté conditionnel, et que ${mag}, l'antenne et le SAR prévus figurent dans les conditions.`);
   s.push(`<strong>Programmation pré-examen</strong> selon les instructions du fabricant, par ${U_REFERENT[t]}, et reprogrammation après l'examen.`);
   if(t==="cochleaire") s.push("Implant cochléaire : suivre la procédure du fabricant pour l'aimant interne (bandage de compression, ou retrait chirurgical selon le modèle et le champ).");
   if(t==="pompe") s.push("Pompe implantable : la contrôler après l'examen (débit, réservoir) — certaines s'arrêtent pendant l'exposition au champ.");
@@ -2030,7 +2103,7 @@ function uResume(){
     U.valveYear?`Année de pose : ${U_VALVY[U.valveYear]}`:"",
     U.orthoType?`Matériel orthopédique : ${U_ORTHO[U.orthoType]}`:"",
     U.pt?`Position : ${Math.round(U.pt.f*m.h)} cm du vertex ; ${cm(g.z)} cm de l'isocentre (axe du tunnel)${g.fil?" ; fil : trajet estimé à ±"+FIL_SPAN+" cm":""}, ${sideTxt(g.x)}, ${apTxt(g.y)}`:"",
-    `Ancienneté : ${{ancien:"ancien / fixe",recent:"récent / potentiellement mobile",inconnu:"inconnue"}[U.mobile]}`,
+    U.mobile?`Ancienneté : ${{ancien:"ancien / fixe",recent:"récent / potentiellement mobile",inconnu:"inconnue"}[U.mobile]}`:"",
     tier<3?"Niveaux : "+uEnergies().map(e=>`${e.k} ${U_LV[e.lv].n.toLowerCase()}${e.info?" (informatif)":""}`).join(", "):"",
     tier<3&&uSarNote()?"Condition SAR : "+uSarNote().replace(/<[^>]+>/g,""):""
   ].filter(Boolean).join("\n");
@@ -2046,8 +2119,8 @@ function uStepNum(){
   return [vis.indexOf(U.step)+1, vis.length];
 }
 function uHead(n,t){ const [k,tot]=uStepNum(); return `<h2>Mode urgence <em>${k} / ${tot}</em></h2>${t?`<div class="sub">${t}</div>`:""}`; }
-function uNav(label){ return `<div class="actions"><button class="act" id="unext" disabled>${label||"Suivant"}</button>
-  <button class="gh" id="uprev">Précédent</button></div>`; }
+function uNav(label){ return `<div class="actions"><button class="gh" id="uprev">Précédent</button>
+      <button class="act" id="unext" disabled>${label||"Suivant"}</button></div>`; }
 function uBindSimple(st){ st.qs.forEach(bindQU); $("uprev").onclick=()=>goUBack(U.step); }
 
 const USTEPS=[];
@@ -2071,8 +2144,8 @@ USTEPS[0]={
         <div class="fh">Facultatif — sert à estimer la corpulence.</div></div>
     </div>
     <div class="note" id="umorph">${uMorphTxt(m)}</div>
-    <div class="actions"><button class="act" id="unext">Suivant</button>
-      <button class="gh" id="uhome">Accueil</button></div>`;
+    <div class="actions"><button class="gh" id="uhome">Accueil</button>
+      <button class="act" id="unext">Suivant</button></div>`;
   },
   bind(){
     $("uex").onchange=e=>{U.ex=e.target.value; U.pos=HYP.exams[U.ex].pos; $("upos").value=U.pos;};
@@ -2104,11 +2177,12 @@ USTEPS[1]={
   bind(){ uBindSimple(this); },
   ready:()=>!!U.ident
 };
-USTEPS[2]={
+USTEPS[3]={
   key:"compat",
-  skip:()=>U.ident==="inconnu",
+  /* un corps étranger n'a ni carte ni notice : pas de compatibilité à indiquer */
+  skip:()=>U.ident==="inconnu"||U.nature==="etranger",
   render(){
-    this.qs=[QU("compat","Compatibilité indiquée","D'après la carte, la notice, ou le dossier patient.",[
+    this.qs=[QU("compat","Compatibilité indiquée",U.nature==="actif"?"Un implant actif doit être documenté : sans conditions précises, l'IRM n'est pas recommandée (programmation pré-examen indispensable). D'après la carte, la notice, ou le dossier patient.":"D'après la carte, la notice, ou le dossier patient.",[
       {l:"Conditionnelle, avec conditions précises (champ, antenne, débit d'absorption…)",v:"conditionnel_precis"},
       {l:"Conditionnelle, mais conditions imprécises ou lecture incertaine",v:"conditionnel_flou"},
       {l:"Non compatible IRM",v:"non_compatible"},
@@ -2118,7 +2192,7 @@ USTEPS[2]={
   bind(){ uBindSimple(this); },
   ready:()=>!!U.compat
 };
-USTEPS[3]={
+USTEPS[2]={
   render(){
     const fb={l:"Corps étranger — éclat, projectile, fragment métallique (origine non médicale)",v:"etranger"};
     const rest=[
@@ -2147,6 +2221,11 @@ USTEPS[4]={
 /* Localisation : désignée tôt, car elle conditionne les questions suivantes
    (type d'implant ou structure sensible proposés selon la région). */
 USTEPS[5]={
+  /* Implant actif : le résultat ne dépend pas de sa position — documenté, il est
+     couvert par les conditions du fabricant ; non documenté, l'IRM n'est pas
+     recommandée. Inutile de la demander. */
+  key:"pt",
+  skip:()=>U.nature==="actif",
   render(){
     return uHead(5,`Touchez l'endroit où se trouve l'implant. Tournez le mannequin pour préciser la profondeur en vue de profil. Pour une sonde ou un fil, touchez le point de son trajet le plus proche de l'isocentre.`)+`
     <div class="mq">
@@ -2263,7 +2342,13 @@ USTEPS[11]={
   bind(){ uBindSimple(this); },
   ready:()=>!!U.alloy
 };
+/* L'ancienneté ne change rien au résultat pour un implant actif ou une sonde,
+   un stent, une valve ou un implant vasculaire, un clip posé en 2000 ou après
+   (déplacement exclu par la règle propre à ce matériel). Elle est conservée
+   quand l'implant est non identifié : elle conditionne alors l'orientation. */
 USTEPS[12]={
+  key:"mobile",
+  skip:()=>U.nature==="actif"||U.ident!=="inconnu"&&(U.nature==="fil"||["coronaire","valve","vaisseau","conduit"].includes(U.struct)||(U.struct==="clip"&&U.clipYear==="2000")||U.compat==="conditionnel_precis"),
   render(){
     this.qs=[QU("mobile","Ancienneté / fixité","Objectivable via le dossier ou l'imagerie, sans que le patient ait besoin de répondre.",[
       {l:"Ancien / fixe (visible sur une imagerie antérieure, contexte non traumatique récent)",v:"ancien"},
@@ -2285,7 +2370,7 @@ USTEPS[13]={
     const sar=tier<3?uSarNote():null;
     const cfg={
       0:{c:"--r0",bg:"--r0bg",t:"Éléments a priori rassurants",
-         b: actifDoc ? "Réalisable dans les conditions du fabricant, après programmation pré-examen. Voir les étapes ci-dessous."
+         b: actifDoc ? "<strong>Se référer aux conditions techniques du fabricant : elles font foi, et cet outil n'y déroge pas.</strong> Examen réalisable uniquement dans ces conditions, après programmation pré-examen. Voir les étapes ci-dessous."
            : sar ? "Aucun mécanisme n'atteint un niveau préoccupant. Réalisable en respectant la condition de SAR indiquée ci-dessous ; contact patient actif (poire d'alarme)."
            : "Aucun mécanisme n'atteint un niveau préoccupant dans cette configuration. Procéder selon le protocole standard, contact patient actif (poire d'alarme)."},
       1:{c:"--r1",bg:"--r1bg",t:"Réalisable avec précautions ciblées",
@@ -2331,18 +2416,17 @@ USTEPS[13]={
       <div class="uen-h"><span class="uen-k">${e.k}</span><span class="uen-n">${e.n}</span>
         <span class="uen-lv" style="color:var(${U_LV[e.lv].c});background:var(${U_LV[e.lv].bg});border-color:var(${U_LV[e.lv].c})">${U_LV[e.lv].n}${e.info?" · info":""}</span></div>
       <div class="uen-b">${e.why}</div></div>`).join("")}</div>
-    <div class="note">Position retenue : ${cm(g.z)} cm de l'isocentre le long du tunnel, ${sideTxt(g.x)}, ${apTxt(g.y)}. ${g.fil?` Fil ou sonde désigné par un seul point : trajet estimé à ±${FIL_SPAN} cm au-dessus et en dessous, sans sortir de la région anatomique désignée ; le pire point est retenu.`:""} ${POS[U.pos]}, aimant ${MAG[U.B]}, ${COIL[U.coil].toLowerCase()} en émission.</div>
+    ${U.pt?`<div class="note">Position retenue : ${cm(g.z)} cm de l'isocentre le long du tunnel, ${sideTxt(g.x)}, ${apTxt(g.y)}. ${g.fil?` Fil ou sonde désigné par un seul point : trajet estimé à ±${FIL_SPAN} cm au-dessus et en dessous, sans sortir de la région anatomique désignée ; le pire point est retenu.`:""} ${POS[U.pos]}, aimant ${MAG[U.B]}, ${COIL[U.coil].toLowerCase()} en émission.</div>`:`<div class="note">${POS[U.pos]}, aimant ${MAG[U.B]}, ${COIL[U.coil].toLowerCase()} en émission.</div>`}
     ${conseils.length?`<div class="eyebrow">Précautions${tier===2?" si l'examen est maintenu":""}</div>
     ${conseils.map(c=>`<div class="mit"><div class="mit-k">${{couple:"Couple (B0)",translation:"Translation (dB/dx)",dbdt:"Stimulation (dB/dt)",b1:"Échauffement (B1)"}[c]}</div><div class="mit-b">${U_CONSEILS[c].join(" ")}</div></div>`).join("")}`:""}`}
     ${tier>=1&&manque.length?`<div class="note"><strong>Ce qui affinerait l'orientation :</strong> ${manque.join(", ")}.</div>`:""}
     <div class="actions">
-      <button class="act" id="uprint">Imprimer la fiche / PDF</button>
       <button class="gh" id="uprev">Modifier les réponses</button>
       <button class="gh" id="uincident">Déclarer un incident</button>
       <button class="gh" id="ufull">Passer en analyse complète</button>
       <button class="gh" id="urestart">Nouvelle analyse urgence</button>
       <button class="gh" id="uhome">Accueil</button>
-    </div>`;
+      <button class="act" id="uprint">Imprimer la fiche / PDF</button></div>`;
   },
   bind(){
     $("uincident").onclick=()=>goIncident(uResume());
@@ -2389,9 +2473,8 @@ function goIncident(prefill){
   <div class="panel"><div class="panel-h"><div class="panel-t">Résumé à copier</div></div>
     <div class="dbody" style="padding:14px"><pre style="white-space:pre-wrap;font-family:var(--mono);font-size:12px;line-height:1.6;color:var(--ink-2)">${txt.replace(/</g,"&lt;")}</pre></div></div>
   <div class="actions">
-    <button class="act" id="icopy">Copier le résumé</button>
     <button class="gh" id="iopen">Ouvrir le formulaire ASTRM ↗</button>
-  </div>
+      <button class="act" id="icopy">Copier le résumé</button></div>
   <div class="note" style="margin-top:18px"><strong>Définitions du formulaire ASTRM</strong> — incident : événement fortuit qui aurait pu provoquer des dommages. Near miss : incident qui a failli de très peu provoquer un accident. Événement indésirable grave : entraîne la mort, met en danger la vie de la personne, nécessite une hospitalisation ou sa prolongation, provoque une incapacité ou un handicap important et durable, ou se traduit par une anomalie ou une malformation congénitale.</div>
   <div class="actions"><button class="gh" id="uhome">Accueil</button></div>`;
   $("icopy").onclick=()=>{
@@ -2428,9 +2511,8 @@ function goFormation(){
     <div class="q-h">Précisez le contenu souhaité, la durée envisagée, le temps dont vous disposez, et sur combien de jours.</div>
     <textarea id="fbesoin" rows="5" style="width:100%;font-family:var(--sans);font-size:14px;color:var(--ink);background:var(--paper);border:1px solid var(--line-2);border-radius:var(--radius-xs);padding:9px 10px"></textarea></div>
   <div class="actions">
-    <button class="act" id="fsend">Envoyer la demande</button>
     <button class="gh" id="uhome">Accueil</button>
-  </div>
+      <button class="act" id="fsend">Envoyer la demande</button></div>
   <div class="note" style="margin-top:14px">Un devis vous sera adressé après réception de votre demande.</div>`;
   $("fsend").onclick=()=>{
     if(!CONTACT.email){ alert("Aucune adresse de contact n'est configurée dans ce fichier pour le moment."); return; }
