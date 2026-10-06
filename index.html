@@ -266,11 +266,12 @@ details[open] summary::before{content:"▾ "}
 .uen-b{font-size:13.5px;color:var(--ink-2);line-height:1.55;margin-top:6px}
 
 .printonly{display:none}
+.pr-top{display:flex;align-items:center;gap:10px}.pr-logo{width:44px;height:44px}
 @media print{
   :root{--paper:#fff;--card:#fff;--ink:#111;--ink-2:#333;--ink-3:#555;--line:#ccc;--line-2:#bbb;--accent:#2F4FCB;--accent-2:#2F4FCB;
     --r0:#1E7A55;--r1:#7A6100;--r2:#A6550F;--r3:#A63F1D;--r4:#A82020;--r0bg:#EAF6EF;--r1bg:#FFF7D6;--r2bg:#FDEEDF;--r3bg:#FCE6DE;--r4bg:#FBE5E5}
   body{background:#fff!important;color:#111;font-size:12px}
-  body::before,.accent-bar,#fields,#srcs,.actions,header .ver{display:none!important}
+  body::before,.accent-bar,#fields,#srcs,.actions,header .ver,.brand-logo{display:none!important}
   .shell{max-width:none;padding:0}
   .printonly{display:block;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid #ccc}
   .pr-h{font-family:var(--cond);font-size:18px;font-weight:600}
@@ -424,12 +425,12 @@ function reset(){
      B:"1.5",ex:"crane",pos:"dos",ent:"tete",coil:"body",
      kind:null,imp:"pectoral",lat:"leger",label:null,complies:null,
      ferro:null,cond:null,anchored:null,linear:null,
-     securable:null,tissue:null,slow:null,funcB0:null,dependent:null,
-     tipExcit:null,gradMitig:null,vibr:null,
+     securable:null,fsize:null,site:null,slow:null,funcB0:null,dependent:null,
+     tipExcit:null,vibr:null,sup:null,
      len:null,insul:null,multi:null,sink:null,pathIn:null,
      tattoo:false,tattooAge:null,tattooSize:null,
      scores:[null,null,null,null],detail:[[],[],[],[]],
-     mitig:[],trace:[],tab:"B1",hist:[],cur:null,snap:{}};
+     mitig:[],trace:[],tab:"B1",hist:[],cur:null,snap:{},ideasBy:{},curIdeas:[]};
 }
 reset();
 const $=id=>document.getElementById(id);
@@ -769,10 +770,12 @@ STEPS[2]={
         {l:"Aucun étiquetage disponible",v:"none"},
         {l:"Étiquetage non retrouvé à ce stade",v:"unknown"}])
     ];
-    this.qs[0].after=v=>{ syncLabel(v); };
+    /* implant actif : seule la documentation du fabricant compte, la position n'est pas demandée */
+    this.qs[0].after=v=>{ syncLabel(v); const m=$("q-mq"); if(m) m.style.display=v==="actif"?"none":""; };
     return `<h2>Identification du dispositif</h2>
     <div class="sub">Une seule analyse par dispositif. Si le patient en porte plusieurs, reprendre l'analyse pour chacun.</div>
     ${this.qs[0].html}
+    <div id="q-mq"${S.kind==="actif"?' style="display:none"':""}>
     <div class="q"><div class="q-l">Localisation du dispositif</div>
       <div class="q-h">Touchez l'endroit où se trouve le dispositif ; tournez le mannequin pour préciser la profondeur en vue de profil. Pour une sonde ou un fil, retenir le point le plus latéral de son trajet : c'est là que le couplage est maximal.</div></div>
     <div class="mq">
@@ -784,7 +787,7 @@ STEPS[2]={
           Tourner le mannequin</button>
       </div>
       <div class="mq-side" id="mqread"></div>
-    </div>
+    </div></div>
     <div id="q-lab"${NO_LABEL.includes(S.kind)?' style="display:none"':""}>${this.qs[1].html}</div>
     <div class="actions"><button class="act" id="next"${STEPS[2].ready()?"":" disabled"}>Suivant</button></div>`;
   },
@@ -792,8 +795,8 @@ STEPS[2]={
     mqDraw();
     $("mqrot").onclick=()=>{ const C=mqCtx(); C.view=(C.view+1)%MQ_VIEWS.length; mqDraw(); };
   },
-  ready:()=>!!(S.kind&&S.label&&S.mpt),
-  done(){ log("Localisation du dispositif",`${HYP.land[S.imp].n} (repère le plus proche) — ${Math.round(Math.abs(bImp()))} cm de l'isocentre`);
+  ready:()=>!!(S.kind&&S.label&&(S.kind==="actif"||S.mpt)),
+  done(){ if(S.kind==="actif") return; log("Localisation du dispositif",`${HYP.land[S.imp].n} (repère le plus proche) — ${Math.round(Math.abs(bImp()))} cm de l'isocentre`);
     log("Position latérale",`${HYP.lat[S.lat].n} — ${Math.round(latD())} cm de l'axe du tunnel`); }
 };
 /* Mannequin → repère anatomique le plus proche (libellés) et catégorie latérale. */
@@ -857,7 +860,7 @@ STEPS[4]={
         [{l:"Oui",v:"yes"},{l:"Non",v:"no"},{l:"Inconnu",v:"unknown"}],true),
       Q("anchored","Le dispositif est-il ancré ou fibrosé de façon stable ?",
         "Un implant ancien, encapsulé ou vissé dans l'os est considéré comme ancré. Un corps étranger libre ou un implant récent ne l'est pas.",
-        [{l:"Oui — ancré, fibrosé, ou de masse négligeable",v:"yes"},{l:"Non — mobile, récent, ou dans un tissu sensible",v:"no"},{l:"Inconnu",v:"unknown"}]),
+        [{l:"Oui — ancré, fibrosé, ou de masse négligeable",v:"yes"},{l:"Non — mobile ou récent",v:"no"},{l:"Inconnu",v:"unknown"}]),
       ...(lin?[]:[Q("linear","Le dispositif est-il linéaire ?",
         "Fil, sonde, électrode, cathéter, ou tout conducteur allongé. Une prothèse compacte ne l'est pas.",
         [{l:"Oui — conducteur allongé",v:"yes"},{l:"Non — compact",v:"no"}],true)])
@@ -951,74 +954,84 @@ STEPS[5]={
   ready:()=>true
 };
 
-/* 6 — forces mécaniques : B0 + dB/dx */
+/* 6 — forces mécaniques : B0 + dB/dx
+   Règle de l'expert de l'outil : un élément ferromagnétique (ou de
+   ferromagnétisme inconnu) part d'un risque élevé. Seuls ses caractères
+   propres peuvent le réduire : taille, localisation, fixation. Aucune mesure
+   de l'équipe ne retire de point, sauf l'immobilisation d'un élément externe
+   ou superficiel. Poumon, œil, cerveau, moelle, cœur, vaisseau, nerf : maximum
+   d'emblée. Toute inconnue est traitée comme le pire cas. */
+const SITE_OPTS=[
+  {l:"Externe ou superficiel (peau, tissu sous-cutané)",v:"superf"},
+  {l:"Dans l'os ou un muscle",v:"bone"},
+  {l:"Organe ou tissu mou profond (poumon, abdomen, pelvis…)",v:"deep"},
+  {l:"Structure critique : œil, cerveau, moelle, cœur, gros vaisseau, nerf",v:"crit"},
+  {l:"Inconnu",v:"unknown"}];
 STEPS[6]={
   /* non ferromagnétique et non conducteur (et passif) : aucune force à évaluer,
      la question n'a pas lieu d'être — les scores sont calculés sans l'afficher */
   skip:()=>S.ferro==="no"&&S.cond==="no"&&S.kind!=="actif",
   render(){
     const qs=[], fer=S.ferro!=="no";
-    if(fer&&S.anchored!=="yes") qs.push(Q("securable",`Le dispositif (${devShort()}) peut-il être immobilisé avant l'entrée en zone IV ?`,
-      "Bandage compressif, contention externe, immobilisation mécanique.",
-      [{l:"Oui",v:"yes"},{l:"Non",v:"no"}],true));
-    if(fer) qs.push(Q("tissue",`Le dispositif (${devShort()}) est-il au contact d'un tissu où un déplacement serait dangereux ?`,
-      "Structure vasculaire, tissu nerveux, œil, parenchyme pulmonaire, voisinage cardiaque.",
-      [{l:"Non",v:"no"},{l:"Oui",v:"yes"},{l:"Inconnu",v:"unknown"}],true));
-    if(S.cond!=="no") qs.push(Q("slow","Le déplacement du patient dans le tunnel peut-il être ralenti et contrôlé ?",
-      "Un déplacement lent limite les forces de Lenz induites dans tout matériau conducteur, même non ferromagnétique.",
-      [{l:"Oui",v:"yes"},{l:"Non",v:"no"}],true));
-    if(S.kind==="actif"){
-      qs.push(Q("funcB0","La fonction du dispositif est-elle altérée par le champ statique ou son gradient spatial ?",
-        "Commutateur magnétique, reprogrammation, passage en mode asynchrone, arrêt de stimulation.",
-        [{l:"Non",v:"no"},{l:"Oui",v:"yes"},{l:"Inconnu",v:"unknown"}],true));
-      qs.push(Q("dependent","La santé du patient dépend-elle du fonctionnement continu du dispositif ?",
-        "Patient stimulodépendant, suppléance vitale, perfusion continue.",
-        [{l:"Non",v:"no"},{l:"Oui",v:"yes"},{l:"Inconnu",v:"unknown"}],true));
+    if(fer){
+      qs.push(Q("fsize",`Taille de l'élément (${devShort()})`,"D'après l'imagerie ou le dossier.",
+        [{l:"Moins de 2 cm",v:"small"},{l:"2 cm ou plus",v:"large"},{l:"Inconnue",v:"unknown"}],true));
+      const siteQ=Q("site",`Où se situe-t-il ?`,"La rétention par le tissu et la gravité d'un déplacement en dépendent.",SITE_OPTS);
+      siteQ.after=v=>{ const el=$("q-sec"); if(el) el.style.display=(v==="superf"&&S.anchored!=="yes")?"":"none"; };
+      qs.push(siteQ);
+      qs.push(Q("securable",`Peut-il être immobilisé avant l'entrée en zone IV ?`,
+        "Bandage compressif, contention externe. N'a de sens que pour un élément externe ou proche de la peau.",
+        [{l:"Oui",v:"yes"},{l:"Non",v:"no"}],true));
     }
+    if(!fer&&S.cond!=="no") qs.push(Q("slow","Le déplacement du patient dans le tunnel peut-il être ralenti et contrôlé ?",
+      "Un déplacement lent limite les forces de Lenz induites dans un matériau conducteur non ferromagnétique.",
+      [{l:"Oui",v:"yes"},{l:"Non",v:"no"}],true));
     this.qs=qs;
+    const secVis=S.site==="superf"&&S.anchored!=="yes";
     return `<h2>Forces mécaniques <em>B0 · dB/dx</em></h2>
-    <div class="sub">${fer?"Le champ statique exerce un couple de rotation, homogène dans tout le volume d'imagerie et présent en permanence. Le gradient spatial exerce une force de translation, proche de zéro à l'isocentre et maximale aux extrémités du tunnel — le moment critique est donc le passage du patient, pas l'acquisition.":"Le matériau n'est pas ferromagnétique : ni couple de rotation ni force de translation significatifs, donc pas de question sur l'ancrage ni sur le voisinage tissulaire. Il reste le déplacement dans le champ, qui induit des courants dans tout matériau conducteur (forces de Lenz)."}</div>
-    ${qs.map(q=>q.html).join("")}
+    <div class="sub">${fer?"Le champ statique exerce un couple de rotation, homogène dans tout le volume d'imagerie et présent en permanence. Le gradient spatial exerce une force de translation, proche de zéro à l'isocentre et maximale aux extrémités du tunnel. Un élément ferromagnétique part d'un risque élevé : seuls sa taille, sa localisation et sa fixation peuvent le réduire.":"Le matériau n'est pas ferromagnétique : ni couple de rotation ni force de translation significatifs. Il reste le déplacement dans le champ, qui induit des courants dans tout matériau conducteur (forces de Lenz)."}</div>
+    ${qs.map(q=>q.key==="securable"?`<div id="q-sec"${secVis?"":' style="display:none"'}>${q.html}</div>`:q.html).join("")}
     <div class="actions"><button class="act" id="next"${this.ready()?"":" disabled"}>Suivant</button></div>`;
   },
   bind(){ bindAll(this.qs); },
   ready(){
     if(S.ferro!=="no"){
-      if(S.anchored!=="yes"&&!S.securable) return false;
-      if(!S.tissue) return false;
-    }
-    if(S.cond!=="no"&&!S.slow) return false;
-    if(S.kind==="actif"&&!(S.funcB0&&S.dependent)) return false;
+      if(!S.fsize||!S.site) return false;
+      if(S.site==="superf"&&S.anchored!=="yes"&&!S.securable) return false;
+    } else if(S.cond!=="no"&&!S.slow) return false;
     return true;
   },
   score(){
-    let base=S.ferro==="no"?0:S.ferro==="unknown"?2:3;
-    const w0=[],wx=[];
-    if(S.ferro==="no"){ w0.push("Matériau non ferromagnétique : pas de couple significatif."); }
-    else if(S.ferro==="unknown"){ w0.push("Ferromagnétisme non documenté : traité par précaution comme potentiellement ferromagnétique."); }
+    const w0=[],wx=[]; let s0,sx;
     if(S.ferro!=="no"){
-      if(S.anchored==="yes"){ base-=1; w0.push("Ancrage stable : déplacement peu probable."); }
-      else if(S.securable==="yes"){ base-=1; S.mitig.push(["Immobilisation","Immobiliser le dispositif avant l'entrée en zone IV et vérifier la contention après installation du patient."]); }
-      else { base+=1; w0.push("Dispositif ni ancré ni immobilisable."); }
-      if(S.tissue==="yes"){ base+=1; w0.push("Voisinage d'un tissu sensible au déplacement."); }
-      else if(S.tissue==="unknown") w0.push("Localisation tissulaire imprécise.");
-    }
-    let s0=base; if(!inBore()){ s0-=1; w0.push("Dispositif hors du volume de l'aimant."); }
-    let sx=base;
-    wx.push(...w0.filter(x=>!x.startsWith("Dispositif hors")));
-    if(S.cond!=="no"){
-      if(sx<1){ sx=1; wx.push("Matériau conducteur : forces de Lenz possibles au passage, même sans ferromagnétisme."); }
-      if(S.slow==="yes"){ sx=Math.max(0,sx-1); S.mitig.push(["Vitesse de déplacement","Faire progresser le patient lentement à l'entrée et à la sortie du tunnel : les forces de Lenz croissent avec la vitesse."]); }
-      else { sx+=1; wx.push("Déplacement lent non réalisable."); }
+      w0.push(S.ferro==="unknown"?"Ferromagnétisme non documenté : traité comme ferromagnétique (pire cas).":"Matériau ferromagnétique : risque de déplacement élevé d'emblée.");
+      const small=S.fsize==="small", anch=S.anchored==="yes";
+      if(S.fsize==="unknown") w0.push("Taille inconnue : traitée comme 2 cm ou plus (pire cas).");
+      let v;
+      if(S.site==="crit"){ v=4; w0.push("Structure critique (œil, cerveau, moelle, cœur, gros vaisseau, nerf) : maximum d'emblée, aucun facteur ne réduit le risque."); }
+      else if(S.site==="unknown"){ v=4; w0.push("Localisation non établie : traitée comme une structure critique (pire cas)."); }
+      else if(S.site==="deep"){ v=4; w0.push("Organe ou tissu mou profond (poumon, abdomen…) : rétention faible, maximum d'emblée, aucun facteur ne réduit le risque."); }
+      else if(S.site==="bone"){
+        v=anch?(small?1:2):3;
+        w0.push(anch?(small?"Petit élément ancré dans l'os ou le muscle, ancien : déplacement peu probable.":"Élément ancré dans l'os ou le muscle, mais de 2 cm ou plus."):"Élément dans l'os ou le muscle, mais non ancré (récent ou mobile).");
+      } else {
+        if(anch&&small){ v=1; w0.push("Petit élément superficiel, ancien et fixé."); }
+        else if(S.securable==="yes"){ v=2; w0.push("Élément superficiel immobilisé avant l'entrée en zone IV."); S.mitig.push(["Immobilisation","Immobiliser l'élément (bandage compressif, contention) avant l'entrée en zone IV et vérifier la contention après installation du patient."]); }
+        else { v=3; w0.push("Élément superficiel ni ancré ni immobilisable."); }
+      }
+      s0=v; sx=v;
+      wx.push(...w0);
+      if(!inBore()){ s0=Math.max(0,s0-1); w0.push("Dispositif hors du volume de l'aimant."); }
+      S.mitig.push(["Vitesse de déplacement","Faire progresser le patient lentement à l'entrée et à la sortie du tunnel. C'est une précaution : elle ne réduit pas le niveau de risque d'un élément ferromagnétique."]);
+    } else {
+      s0=0; sx=0; w0.push("Matériau non ferromagnétique : pas de couple significatif.");
+      if(S.cond!=="no"){
+        wx.push("Matériau conducteur : forces de Lenz possibles au passage, même sans ferromagnétisme.");
+        if(S.slow==="yes"){ sx=1; wx.push("Entrée lente : réduit les forces de Lenz, sans les supprimer."); S.mitig.push(["Vitesse de déplacement","Faire progresser le patient lentement à l'entrée et à la sortie du tunnel : les forces de Lenz croissent avec la vitesse."]); }
+        else { sx=2; wx.push("Déplacement lent non réalisable."); }
+      } else wx.push("Matériau non ferromagnétique et non conducteur : pas de force de translation.");
     }
     if(inBore()) wx.push("Le dispositif traverse la zone de gradient spatial maximal à l'entrée et à la sortie.");
-    if(S.kind==="actif"&&(S.funcB0==="yes"||S.funcB0==="unknown")){
-      s0+=1; sx+=1; const t="Fonction du dispositif potentiellement altérée par le champ.";
-      w0.push(t); wx.push(t);
-      if(S.dependent==="yes"){ s0+=2; sx+=2; const u="Patient dépendant du dispositif : une altération de fonction a une conséquence directe."; w0.push(u); wx.push(u); }
-      else if(S.dependent==="unknown"){ s0+=1; sx+=1; }
-      S.mitig.push(["Encadrement du dispositif actif","Faire valider le mode de programmation et la surveillance péri-examen par le service référent avant l'installation."]);
-    }
     return [{i:0,s:clamp(s0),w:w0},{i:1,s:clamp(sx),w:wx}];
   }
 };
@@ -1034,9 +1047,6 @@ STEPS[7]={
       qs.push(Q("tipExcit",`L'extrémité du conducteur (${devShort()}) est-elle au contact d'un tissu excitable ?`,
         "Le point critique est le tissu cardiaque : un fil focalise les champs électriques induits à son extrémité et peut potentialiser une arythmie.",
         [{l:"Non",v:"no"},{l:"Oui — tissu cardiaque",v:"cardiac"},{l:"Oui — autre tissu excitable",v:"other"},{l:"Inconnu",v:"unknown"}]));
-      qs.push(Q("gradMitig","Une réduction de l'amplitude maximale de gradient est-elle envisageable ?",
-        "Champ de vue élargi, coupes plus épaisses, séquences moins agressives.",
-        [{l:"Oui",v:"yes"},{l:"Non",v:"no"}],true));
     } else {
       qs.push(Q("vibr","Une vibration induite représenterait-elle un risque pour le dispositif ou le patient ?",
         "Dispositif fragile, voisinage d'une structure sensible, ancrage précaire.",
@@ -1051,7 +1061,7 @@ STEPS[7]={
     <div class="actions"><button class="act" id="next"${this.ready()?"":" disabled"}>Suivant</button></div>`;
   },
   bind(){ bindAll(this.qs); },
-  ready:()=>S.linear==="yes"?(S.tipExcit&&S.gradMitig):!!S.vibr,
+  ready:()=>S.linear==="yes"?!!S.tipExcit:!!S.vibr,
   score(){
     const w=[]; const z=expo("dB/dt"); const b=bImp();
     if(S.cond==="no") return [{i:2,s:0,w:["Matériau non conducteur : pas de courant induit significatif."]}];
@@ -1060,15 +1070,12 @@ STEPS[7]={
       s=1+z; w.push(`Conducteur allongé à ${Math.round(Math.abs(b))} cm de l'isocentre, ${z===2?"dans la zone de gradient maximal":z===1?"en bordure de zone":"proche de l'isocentre"}.`);
       if(S.tipExcit==="cardiac"){ s+=2; w.push("Extrémité au contact du tissu cardiaque : potentialisation arythmogène."); }
       else if(S.tipExcit==="other"){ s+=1; w.push("Extrémité au contact d'un tissu excitable."); }
-      else if(S.tipExcit==="unknown"){ s+=1; w.push("Position de l'extrémité non établie."); }
-      if(s>=2){
-        if(S.gradMitig==="yes"){ s-=1; S.mitig.push(["Adaptation de séquence","Réduire l'amplitude maximale de gradient : champ de vue élargi, coupes plus épaisses, séquences moins agressives."]); }
-        else w.push("Adaptation de séquence non réalisable.");
-      }
+      else if(S.tipExcit==="unknown"){ s+=2; w.push("Position de l'extrémité non établie : traitée comme au contact du tissu cardiaque (pire cas)."); }
+      if(s>=2) idea("Amplitude des gradients","Si le protocole le permet et si vous savez le faire : réduire l'amplitude maximale de gradient (champ de vue élargi, coupes plus épaisses, séquences moins agressives).");
     } else {
       s=z===2?1:0;
       if(S.vibr==="yes"){ s+=2; w.push("Risque de vibration induite retenu."); }
-      else if(S.vibr==="unknown"){ s+=1; w.push("Risque de vibration non établi."); }
+      else if(S.vibr==="unknown"){ s+=2; w.push("Risque de vibration non établi : retenu (pire cas)."); }
       if(!s) w.push("Dispositif compact, hors de la zone de gradient maximal.");
     }
     if(S.kind==="actif"){ s+=1; w.push("Dispositif actif : tensions et courants induits susceptibles de perturber la fonction."); }
@@ -1165,9 +1172,15 @@ STEPS[8]={
         [{l:"Non — conducteur unique",v:"no"},{l:"Oui — multiples ou croisés",v:"multi"},
          {l:"Oui — boucle fermée",v:"loop"},{l:"Inconnu",v:"unknown"}]));
     }
-    qs.push(Q("sink","Un dissipateur thermique peut-il être mis en place ?",
-        "Compresse froide ou poche de gel au contact du point d'échauffement attendu, notamment l'extrémité dénudée.",
-        [{l:"Oui",v:"yes"},{l:"Non",v:"no"}],true));
+    /* compresse froide : sans effet sur le niveau ; utile seulement pour un
+       élément externe ou sous la peau */
+    const supKnown=S.tattoo||(S.ferro!=="no"&&S.site);
+    if(!supKnown){
+      const qs1=Q("sup","L'élément est-il externe ou sous la peau ?","",[{l:"Oui",v:"yes"},{l:"Non",v:"no"}],true);
+      qs1.after=v=>{ const el=$("q-sink"); if(el) el.style.display=v==="yes"?"":"none"; };
+      qs.push(qs1);
+    }
+    qs.push(Q("sink","Une compresse froide peut-elle y être appliquée ?","",[{l:"Oui",v:"yes"},{l:"Non",v:"no"}],true));
     if(S.linear==="yes"&&e<2) qs.unshift(Q("pathIn",
       `Le trajet du conducteur atteint-il le volume d'émission ?`,
       `Déterminant, et la géométrie ne peut pas y répondre seule. Une sonde de stimulateur cardiaque descend vers le cœur, donc s'éloigne d'une antenne tête. Une extension de neurostimulateur profond remonte vers le crâne, donc y entre. Un cathéter de pompe abdominale remonte le rachis. Le corps du dispositif peut être hors du volume alors que le conducteur y plonge.`,
@@ -1190,7 +1203,7 @@ STEPS[8]={
     <div class="cmp" id="cmp">${coilCompare()}</div>
     <div class="fh" style="margin:8px 0 0">Le choix de l'antenne d'émission appartient au TRM lorsque plusieurs sont disponibles. Sélectionner une option recalcule l'analyse. Ne retenir une antenne émettrice-réceptrice que si le matériel est réellement présent et utilisable pour cet examen.</div>
     ${helpCoil()}
-    ${qs.map(q=>q.html).join("")}
+    ${qs.map(q=>q.key==="sink"?`<div id="q-sink"${isSuperficial()?"":' style="display:none"'}>${q.html}</div>`:q.html).join("")}
     <div class="actions"><button class="act" id="next"${this.ready()?"":" disabled"}>Voir la synthèse</button></div>`;
   },
   bind(){
@@ -1202,7 +1215,8 @@ STEPS[8]={
     });
   },
   ready(){
-    let b=S.sink&&(S.tattoo||(S.len&&S.multi&&(S.linear!=="yes"||S.insul)));
+    const supKnown=S.tattoo||(S.ferro!=="no"&&S.site);
+    let b=(S.tattoo||(S.len&&S.multi&&(S.linear!=="yes"||S.insul)))&&(supKnown||S.sup)&&(!isSuperficial()||S.sink);
     if(S.linear==="yes"&&expo("B1")<2&&!S.pathIn) b=false;
     return S.tattoo?(b&&S.tattooAge&&S.tattooSize):!!b;
   },
@@ -1213,7 +1227,7 @@ STEPS[8]={
        décide s'il y a couplage, pas la géométrie du dispositif. */
     if(S.linear==="yes"&&e<2){
       if(S.pathIn==="yes"){ e=2; w.push("Le trajet du conducteur atteint le volume d'émission : le couplage a lieu, même si le corps du dispositif est en dehors."); }
-      else if(S.pathIn==="unknown"){ e=Math.max(e,1); w.push("Trajet du conducteur non déterminé : couplage non écarté."); }
+      else if(S.pathIn==="unknown"){ e=2; w.push("Trajet du conducteur non déterminé : traité comme atteignant le volume d'émission (pire cas)."); }
       else if(localCoil()){ e=0; w.push("Le trajet du conducteur s'éloigne du volume d'émission, et le champ d'une antenne locale blindée ne déborde pas."); }
       else w.push("Le trajet du conducteur n'atteint pas le cœur du volume d'émission, mais le champ de l'antenne corps décroît sans s'annuler.");
     }
@@ -1221,7 +1235,7 @@ STEPS[8]={
       `Aucune partie du dispositif n'est exposée au champ d'émission (${COIL[S.coil].toLowerCase()}, ${rfLen()} cm) : pas de couplage radiofréquence.`]}];
     let s;
     if(S.len==="resonant"){ s=3; w.push(`Longueur proche de la longueur résonante à ${MAG[S.B]} (${F.Lr} cm).`); }
-    else if(S.len==="unknown"){ s=2; w.push("Longueur conductrice inconnue : résonance non écartée."); }
+    else if(S.len==="unknown"){ s=3; w.push("Longueur conductrice inconnue : traitée comme proche de la résonance (pire cas)."); }
     else if(S.len==="long"){ s=2; w.push("Longueur au-delà de la résonance fondamentale : la résonance étant périodique, un harmonique ne peut être écarté sans mesure."); }
     else { s=1; w.push("Longueur nettement inférieure à la résonance."); }
     if(rl===2){ s+=2; w.push("Trajet périphérique : couplage maximal avec le champ électrique induit."); }
@@ -1229,9 +1243,10 @@ STEPS[8]={
     else w.push("Trajet central : champ électrique induit plus faible.");
     if(S.insul==="thick"){ s-=1; w.push("Isolation épaisse : échauffement d'extrémité réduit."); }
     else if(S.insul==="bare"){ s+=1; w.push("Conducteur nu."); }
+    else if(S.insul==="unknown"){ s+=1; w.push("Isolation inconnue : traitée comme conducteur nu (pire cas)."); }
     if(S.multi==="multi"){ s+=1; w.push("Conducteurs multiples ou croisés."); }
     else if(S.multi==="loop"){ s+=1; w.push("Boucle fermée : résonance de boucle possible."); }
-    else if(S.multi==="unknown"){ s+=1; w.push("Configuration des conducteurs non établie."); }
+    else if(S.multi==="unknown"){ s+=1; w.push("Configuration des conducteurs non établie : traitée comme multiple ou en boucle (pire cas)."); }
     if(e===1){ s-=1; w.push("Couplage partiel avec le volume d'émission."); }
     else w.push(`Couplage avec le volume d'émission (${COIL[S.coil].toLowerCase()}, ${rfLen()} cm).`);
     if(S.linear!=="yes"){ s-=1; w.push("Dispositif compact : pas d'effet d'antenne."); }
@@ -1241,9 +1256,10 @@ STEPS[8]={
       if(S.tattooSize==="large"&&e>0){ s+=1; w.push("Tatouage étendu dans le volume d'émission."); }
       S.mitig.push(["Surveillance du tatouage","Informer le patient de signaler immédiatement toute sensation de chaleur. Compresse froide sur la zone si étendue ou récente."]);
     }
+    if(isSuperficial()&&S.sink==="yes") idea("Compresse froide","Compresse froide en regard de l'élément, pour limiter un éventuel échauffement.");
     if(s>=2){
-      if(S.sink==="yes"){ s-=1; S.mitig.push(["Dissipateur thermique","Placer une compresse froide au contact du point d'échauffement attendu, notamment l'extrémité dénudée du conducteur."]); }
-      S.mitig.push(["Surveillance active","Maintenir le contact verbal. Faire signaler immédiatement toute sensation de chaleur, de picotement ou de brûlure. Réduire le SAR autant que l'indication le permet."]);
+      idea("SAR","Mode SAR normal, ou plus bas si le protocole le permet.");
+      S.mitig.push(["Surveillance active","Maintenir le contact verbal. Faire signaler immédiatement toute sensation de chaleur, de picotement ou de brûlure."]);
     }
     return [{i:3,s:clamp(s),w}];
   }
@@ -1280,18 +1296,21 @@ STEPS[9]={
       "Le niveau de risque estimé est majeur, ou des éléments déterminants restent non résolus. Ne pas poursuivre sans décision explicite du médecin radiologue responsable de l'IRM. Le recours à un expert en sécurité IRM est recommandé, notamment si l'incertitude porte sur l'identification du dispositif."
     ][max];
     const actifRef=S.kind==="actif"&&S.label==="cond"&&S.complies==="yes";
-    const msg2=actifRef?"<strong>Se référer aux conditions techniques du fabricant : elles font foi, et cet outil n'y déroge pas.</strong> Examen réalisable uniquement dans ces conditions, après programmation pré-examen. Voir les mesures ci-dessous.":msg;
+    const passRef=S.kind!=="actif"&&S.label==="cond"&&S.complies==="yes";
+    const passOut=S.kind!=="actif"&&S.label==="cond"&&S.complies&&S.complies!=="yes";
+    const msg2=passRef?"<strong>Couvert par l'étiquetage MR Conditional</strong>, à condition d'en respecter intégralement les conditions. Documenter la vérification dans le dossier.":actifRef?"<strong>Se référer aux conditions techniques du fabricant : elles font foi, et cet outil n'y déroge pas.</strong> Examen réalisable uniquement dans ces conditions, après programmation pré-examen. Voir les mesures ci-dessous.":msg;
     const unk=S.trace.filter(t=>/inconnu|non détermin|non retrouv|non vérifiab|non identifi/i.test(t[1]));
     return `<h2>Synthèse de l'analyse</h2>
     <div class="sub">Le niveau global retenu est le plus élevé des quatre champs. Un seul mécanisme suffit à porter le risque.</div>
     <div class="verdict" style="background:var(${sc.bg});border-color:var(${sc.c})">
-      <div class="verdict-k" style="color:var(${sc.c})">${actifRef?"Implant actif · conditions du fabricant":`Niveau ${max} sur 4 · déterminé par ${worst.k}`}</div>
+      <div class="verdict-k" style="color:var(${sc.c})">${actifRef?"Implant actif · conditions du fabricant":passRef?"Étiquetage MR Conditional · conditions respectées":`Niveau ${max} sur 4 · déterminé par ${worst.k}`}</div>
       <div class="verdict-t" style="color:var(${sc.c})">${actifRef?"Aucune adaptation de l'outil : le fabricant fait foi":sc.n}</div>
       <div class="verdict-b" style="color:var(${sc.c})">${msg2}</div></div>
+    ${passOut?`<div class="note" style="border-left:3px solid var(--r2)"><strong>Conditions de l'étiquetage ${S.complies==="no"?"non respectables":"non vérifiables"}.</strong> L'implant ne bénéficie pas de son étiquetage MR Conditional : l'analyse ci-dessous s'applique, avec chaque inconnue traitée comme le pire cas.</div>`:""}
     <div class="scale">${SCALE.map((x,i)=>`<div style="color:var(${x.c});${i===max?`background:var(${x.bg});font-weight:600`:""}">${i} · ${x.s}</div>`).join("")}</div>
     <div class="eyebrow">Configuration analysée</div>
     <div class="note"><strong>${MAG[S.B]} · ${HYP.exams[S.ex].n} · ${POS[S.pos]}, ${ENT[S.ent].toLowerCase()} · patient de ${S.h} cm.</strong>
-      ${COIL[S.coil]} en émission (${rfLen()} cm). Dispositif en ${HYP.land[S.imp].n.toLowerCase()}, ${HYP.lat[S.lat].n.toLowerCase()}, à ${Math.round(Math.abs(bImp()))} cm de l'isocentre.</div>
+      ${COIL[S.coil]} en émission (${rfLen()} cm).${S.kind==="actif"?"":` Dispositif en ${HYP.land[S.imp].n.toLowerCase()}, position ${HYP.lat[S.lat].n.toLowerCase()}, à ${Math.round(Math.abs(bImp()))} cm de l'isocentre.`}</div>
     <div class="eyebrow">Détail par champ</div>
     <div class="read">${FIELDS.map((f,i)=>`<div class="rc">
       <div class="rc-k">${f.k} · ${f.risk}</div><div class="rc-n">${f.n}</div>
@@ -1299,6 +1318,9 @@ STEPS[9]={
       ${S.detail[i].length?`<div class="rc-w">${S.detail[i].join(" ")}</div>`:""}</div>`).join("")}</div>
     ${S.mitig.length?`<div class="eyebrow">Mesures d'atténuation retenues</div>
       ${dedupe(S.mitig).map(m=>`<div class="mit"><div class="mit-k">${m[0]}</div><div class="mit-b">${m[1]}</div></div>`).join("")}`:""}
+    ${ideasList().length?`<div class="eyebrow">Idées supplémentaires pour réduire le risque</div>
+      <div class="fh" style="margin:0 0 8px">À faire en plus si possible. Sans effet sur le niveau de risque retenu.</div>
+      ${ideasList().map(m=>`<div class="mit"><div class="mit-k">${m[0]}</div><div class="mit-b">${m[1]}</div></div>`).join("")}`:""}
     ${unk.length?`<div class="note" style="border-left:3px solid var(--r2)"><strong>${unk.length} élément${unk.length>1?"s":""} non résolu${unk.length>1?"s":""}.</strong> Chaque inconnue a été traitée par précaution dans le sens le plus restrictif. Lever ces incertitudes ferait probablement évoluer l'analyse.</div>`:""}
     <div class="note">Cet outil ne décide pas. La décision de réaliser ou non l'examen revient au médecin radiologue responsable de l'IRM, qui met le risque estimé en balance avec le bénéfice attendu au vu de l'ensemble du contexte clinique. Si le patient porte plusieurs dispositifs, reprendre une analyse complète pour chacun, puis considérer le risque cumulé.</div>
     <div class="eyebrow">Trajet de l'analyse</div>
@@ -1332,7 +1354,7 @@ STEPS[9]={
         "Analyse réalisée avec l'outil de sécurité IRM. Contexte :","",
         `Aimant : ${MAG[S.B]} · Émission : ${COIL[S.coil]} (${rfLen()} cm)`,
         `Examen : ${HYP.exams[S.ex].n} · ${POS[S.pos]}, ${ENT[S.ent].toLowerCase()} · patient de ${S.h} cm`,
-        `Dispositif : ${devShort()} en ${HYP.land[S.imp].n.toLowerCase()}, ${HYP.lat[S.lat].n.toLowerCase()} — ${Math.round(Math.abs(bImp()))} cm de l'isocentre`,"",
+        `Dispositif : ${devShort()} en ${HYP.land[S.imp].n.toLowerCase()}, position ${HYP.lat[S.lat].n.toLowerCase()} — ${Math.round(Math.abs(bImp()))} cm de l'isocentre`,"",
         `Niveau global : ${max}/4 — ${SCALE[max].n}`,
         ...FIELDS.map((f,i)=>`  ${f.k} : ${S.scores[i]}/4 — ${SCALE[S.scores[i]].n}`),"",
         "Ma question :","","",
@@ -1357,11 +1379,12 @@ STEPS[9]={
         `Aimant : ${MAG[S.B]} · Émission : ${COIL[S.coil]} (${rfLen()} cm)`,
         `Examen : ${HYP.exams[S.ex].n} · ${POS[S.pos]}, ${ENT[S.ent].toLowerCase()}`,
         `Patient : ${S.h} cm`,
-        `Dispositif : ${HYP.land[S.imp].n}, ${HYP.lat[S.lat].n.toLowerCase()} — ${Math.round(Math.abs(bImp()))} cm de l'isocentre`,"",
+        `Dispositif : ${HYP.land[S.imp].n}, position ${HYP.lat[S.lat].n.toLowerCase()} — ${Math.round(Math.abs(bImp()))} cm de l'isocentre`,"",
         `NIVEAU GLOBAL : ${max}/4 — ${SCALE[max].n}`,
         ...FIELDS.map((f,i)=>`  ${f.k} : ${S.scores[i]}/4 — ${SCALE[S.scores[i]].n}`),"",
         "MESURES D'ATTÉNUATION",
         ...(S.mitig.length?dedupe(S.mitig).map(m=>`  · ${m[0]} : ${m[1]}`):["  aucune"]),"",
+        ...(ideasList().length?["IDÉES SUPPLÉMENTAIRES (sans effet sur le niveau)",...ideasList().map(m=>`  · ${m[0]} : ${m[1]}`),""]:[]),
         "TRAJET",...S.trace.map(x=>`  ${x[0].replace(/\s*\?$/,"")} — ${x[1]}`),"",
         "Analyse structurée à titre documentaire. Ne constitue pas une décision médicale.",
         "Décision finale : médecin radiologue responsable de l'IRM."].join("\n");
@@ -1461,9 +1484,19 @@ function drawSources(){
 function commitStep(n){
   if(S.snap[n]!==undefined&&S.snap[n]<S.mitig.length) S.mitig.length=S.snap[n];
   S.snap[n]=S.mitig.length;
+  S.curIdeas=[];
   STEPS[n].done&&STEPS[n].done();
   if(STEPS[n].score) STEPS[n].score().forEach(r=>{ S.scores[r.i]=r.s; S.detail[r.i]=r.w; });
+  S.ideasBy[n]=S.curIdeas;
 }
+/* idées du parcours réellement suivi (pas après un saut direct à la synthèse) */
+function ideasList(){
+  if(S.label==="safe"||S.label==="unsafe"||S.kind==="actif"||(S.label==="cond"&&S.complies==="yes")) return [];
+  return dedupe([6,7,8].flatMap(n=>S.ideasBy[n]||[]));
+}
+function isSuperficial(){ return S.tattoo||(S.ferro!=="no"&&S.site?S.site==="superf":S.sup==="yes"); }
+/* Idées supplémentaires : à faire « en plus », sans aucun effet sur le niveau. */
+function idea(k,t){ S.curIdeas.push([k,t]); }
 /* Implant actif : on ne déroge pas aux conditions du fabricant. Sans
    documentation, ou si une condition ne peut être respectée, ou si elle n'est
    pas vérifiable, l'IRM n'est pas recommandée ; documenté et conforme, le
@@ -1514,6 +1547,14 @@ function go(n,isBack){
         S.scores=[4,4,4,4];
         S.detail=[0,1,2,3].map(()=>["Étiquetage MR Unsafe : dispositif explicitement contre-indiqué en environnement IRM."]);
         S.mitig.push(["Documentation","Consigner l'étiquetage MR Unsafe et la décision du médecin radiologue responsable de l'IRM dans le dossier du patient."]);
+        return go(9);
+      }
+      /* implant non actif MR Conditional dont toutes les conditions sont
+         respectées : couvert par l'étiquetage, comme en mode urgence */
+      if(n===3&&S.kind!=="actif"&&S.complies==="yes"){
+        S.scores=[0,0,0,0];
+        S.detail=[0,1,2,3].map(()=>["Étiqueté MR Conditional, toutes les conditions respectées : couvert par l'étiquetage du fabricant."]);
+        S.mitig.push(["Conditions de l'étiquetage","Respecter intégralement les conditions du fabricant : champ statique, gradient spatial maximal, SAR, durée d'acquisition, position, antenne."]);
         return go(9);
       }
       if(S.kind==="actif"){
@@ -1634,7 +1675,8 @@ const U_STRUCT={
   os:"Matériel orthopédique (prothèse, vis, plaque, tiges…)",
   vital:"Au contact d'un gros vaisseau, du cœur, du cerveau ou de la moelle",
   nerf:"Au contact d'un nerf",
-  autre:"Aucune de ces structures — tissus mous, graisse, muscle ou os",
+  profond:"Dans un organe profond (poumon, abdomen, pelvis…)",
+  autre:"Aucune de ces structures — sous la peau, graisse, muscle ou os",
   inconnu_site:"Je ne sais pas"
 };
 function uRegion(){
@@ -1651,7 +1693,9 @@ function uStructOpts(){
     return [...by.map(k=>({l:L[k],v:k})),{l:"Autre implant passif (expandeur, matériel mammaire…) / je ne sais pas",v:"autre"}];
   }
   const o=[]; if(R==="tete") o.push("oeil");
-  o.push("vital","nerf","autre","inconnu_site");
+  o.push("vital","nerf");
+  if(["thorax","abdomen","pelvis","cou"].includes(R)) o.push("profond");
+  o.push("autre","inconnu_site");
   return o.map(k=>({l:L[k],v:k}));
 }
 let QUC=0;
@@ -1888,7 +1932,7 @@ function uEnergies(){
   const B=+U.B, hi=B>=3, mag=MAG[U.B];
   const st=U.struct, nat=["coronaire","valve"].includes(st)?"passif":U.nature, fil=nat==="fil";
   const small=U.taille==="petit"||st==="clip", fixe=U.mobile==="ancien";
-  const alloy=U.alloy, sens=["oeil","vital","nerf"].includes(st);        // structure où un déplacement est grave
+  const alloy=U.alloy, sens=["oeil","vital","nerf","profond","inconnu_site"].includes(st);   // inconnu = pire cas        // structure où un déplacement est grave
   const zTxt=g.fil?`trajet estimé à ±${FIL_SPAN} cm dans la même région anatomique, point le plus proche à ${cm(g.zMin)} cm de l'isocentre`:`à ${cm(g.z)} cm de l'isocentre le long du tunnel`;
   const E=(k,n,lv,why,conseil,info)=>({k,n,lv,why,conseil,info:!!info});
   const all0=w=>[E("B0","Couple de rotation (B0)",0,w,"couple"),E("dB/dx","Force de translation (gradient spatial de B0, dB/dx)",0,w,"translation"),
@@ -1934,7 +1978,7 @@ function uEnergies(){
     if(small&&fixe&&!hi&&force>1&&!sens){ force=1; fWhy.push("élément de moins de 2 cm, fixe, loin d'une structure sensible"); }
     else if(small&&fixe&&sens) fWhy.push("élément petit et ancien, mais au contact d'une structure où un déplacement, même minime, est grave : pas de réduction du niveau");
     else if(small&&fixe&&hi) fWhy.push(`élément petit et fixe, mais à ${mag} le couple est environ 4 fois celui de 1,5 T`);
-    if(sens&&alloy!=="nonferro") fWhy.push(st==="oeil"?"œil : l'élément n'est retenu que très faiblement, une rotation ou un déplacement lèse directement la rétine ou le nerf optique":st==="vital"?"au contact d'une structure vitale : un déplacement, même de quelques millimètres, peut être grave":"au contact d'un nerf : un déplacement peut léser le nerf");
+    if(sens&&alloy!=="nonferro") fWhy.push(st==="inconnu_site"?"structure voisine non établie : traitée comme sensible (pire cas)":st==="profond"?"organe profond (poumon, abdomen…) : rétention faible, aucun facteur ne réduit le risque":st==="oeil"?"œil : l'élément n'est retenu que très faiblement, une rotation ou un déplacement lèse directement la rétine ou le nerf optique":st==="vital"?"au contact d'une structure vitale : un déplacement, même de quelques millimètres, peut être grave":"au contact d'un nerf : un déplacement peut léser le nerf");
     if(!sens&&(U.ident==="inconnu"||nat==="etranger"||nat==="inconnue")&&alloy!=="ferro") fWhy.push("si l'élément est dans les tissus mous, la graisse, le muscle ou l'os et loin d'un vaisseau ou d'un nerf, un déplacement serait peu dangereux");
     if(B<1.5) fWhy.push(`champ de ${mag} : couple nettement plus faible qu'à 1,5 T`);
   }
@@ -2013,7 +2057,7 @@ function uMotifs(){
   if(st==="oeil"&&U.alloy!=="nonmetal") m.push({k:"oeil",t:2});
   if(st==="clip"&&!precis&&U.clipYear==="9599") m.push({k:"clip_9599",t:2});
   if(st==="valve"&&U.valveYear!=="autre") m.push({k:"valve",t:2});
-  if(U.mobile==="recent"&&(st==="nerf"||st==="vital")) m.push({k:"migration",t:2});
+  if(U.mobile==="recent"&&["nerf","vital","profond"].includes(st)) m.push({k:"migration",t:2});
   return m;
 }
 function uTier(){
@@ -2086,7 +2130,7 @@ const U_MOTIF={
       "Si le modèle n'est pas un Carpentier-Edwards 4400 ou 4500, appliquer les mêmes conditions que pour les implants cardiaques actuels."]
   },
   migration:{
-    risques:["Corps étranger récent, à proximité d'un trajet nerveux : une migration n'est pas exclue, et une force de déplacement même modeste peut léser le nerf."],
+    risques:["Corps étranger récent, au contact d'une structure sensible (nerf, gros vaisseau, organe profond) : une migration n'est pas exclue, et une force de déplacement même modeste peut léser cette structure."],
     mesures:["Obtenir une imagerie de repérage récente (radiographie) si le délai clinique le permet, pour confirmer la position actuelle."]
   }
 };
@@ -2401,7 +2445,7 @@ USTEPS[13]={
       <div class="eyebrow">${titre1}</div>${d.risques.map(t=>`<div class="mit"><div class="mit-b">${t}</div></div>`).join("")}
       <div class="eyebrow">${titre2}</div>${d.mesures.map(t=>`<div class="mit"><div class="mit-b">${t}</div></div>`).join("")}`; };
     const now=new Date();
-    return `<div class="printonly"><div class="pr-h">MR-SafeTic — orientation mode urgence</div>
+    return `<div class="printonly"><div class="pr-top"><img class="pr-logo" src="data:image/png;base64,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" alt="" width="44" height="44"><div class="pr-h">MR-SafeTic — orientation mode urgence</div></div>
       <div class="pr-d">${now.toLocaleDateString("fr-CH")} à ${now.toLocaleTimeString("fr-CH",{hour:"2-digit",minute:"2-digit"})} · outil d'aide à la décision, ne remplace pas l'avis médical</div>
       <pre class="pr-r">${uResume().replace(/</g,"&lt;")}</pre></div>
     <h2>Orientation</h2>
