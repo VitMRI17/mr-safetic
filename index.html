@@ -854,7 +854,7 @@ STEPS[4]={
     if(lin){ S.linear=lin; S.linAuto=true; } else if(S.linAuto){ S.linear=null; S.linAuto=false; }
     const ferroQ=Q("ferro","Le dispositif est-il ferromagnétique ?",
         "Autrement dit : subira-t-il une rotation ou un déplacement marqué en champ fort ? En cas de matériau non documenté, répondre « inconnu ».",
-        [{l:"Non — non ferromagnétique",v:"no"},{l:"Oui, ou fortement suspecté",v:"yes"},{l:"Inconnu",v:"unknown"}]);
+        [{l:"Non",v:"no"},{l:"Oui, ou fortement suspecté",v:"yes"},{l:"Inconnu",v:"unknown"}]);
     ferroQ.after=v=>{ const el=$("q-anch"); if(el) el.style.display=v==="no"?"none":""; };
     this.qs=[
       ferroQ,
@@ -866,7 +866,7 @@ STEPS[4]={
         [{l:"Oui — ancré, fibrosé, ou de masse négligeable",v:"yes"},{l:"Non — mobile ou récent",v:"no"},{l:"Inconnu",v:"unknown"}]),
       ...(lin?[]:[Q("linear","Le dispositif est-il linéaire ?",
         "Fil, sonde, électrode, cathéter, ou tout conducteur allongé. Une prothèse compacte ne l'est pas.",
-        [{l:"Oui — conducteur allongé",v:"yes"},{l:"Non — compact",v:"no"}],true)])
+        [{l:"Oui",v:"yes"},{l:"Non",v:"no"}],true)])
     ];
     return `<h2>Propriétés du dispositif</h2>
     <div class="sub">Ces caractéristiques déterminent à quels mécanismes physiques le dispositif est sensible. L'ancrage n'est demandé que si le matériau est ferromagnétique ou de ferromagnétisme inconnu.</div>
@@ -1074,7 +1074,7 @@ STEPS[7]={
       if(S.tipExcit==="cardiac"){ s+=2; w.push("Extrémité au contact du tissu cardiaque : potentialisation arythmogène."); }
       else if(S.tipExcit==="other"){ s+=1; w.push("Extrémité au contact d'un tissu excitable."); }
       else if(S.tipExcit==="unknown"){ s+=2; w.push("Position de l'extrémité non établie : traitée comme au contact du tissu cardiaque (pire cas)."); }
-      if(s>=2) idea("Amplitude des gradients","Si le protocole le permet et si vous savez le faire : réduire l'amplitude maximale de gradient (champ de vue élargi, coupes plus épaisses, séquences moins agressives).");
+      if(s>=2) idea("Gradients","Si le protocole le permet, utiliser le mode de gradient le plus bas disponible sur la machine et privilégier des séquences moins exigeantes en gradients que l'EPI (diffusion, IRMf).");
     } else {
       s=z===2?1:0;
       if(S.vibr==="yes"){ s+=2; w.push("Risque de vibration induite retenu."); }
@@ -1187,9 +1187,9 @@ STEPS[8]={
     if(S.linear==="yes"&&e<2) qs.unshift(Q("pathIn",
       `Le trajet du conducteur atteint-il le volume d'émission ?`,
       `Déterminant, et la géométrie ne peut pas y répondre seule. Une sonde de stimulateur cardiaque descend vers le cœur, donc s'éloigne d'une antenne tête. Une extension de neurostimulateur profond remonte vers le crâne, donc y entre. Un cathéter de pompe abdominale remonte le rachis. Le corps du dispositif peut être hors du volume alors que le conducteur y plonge.`,
-      [{l:"Non — le conducteur s'éloigne du volume d'émission",v:"no"},
-       {l:"Oui — une partie du trajet y entre",v:"yes"},
-       {l:"Trajet non déterminé",v:"unknown"}]));
+      [{l:"Non",v:"no"},
+       {l:"Oui",v:"yes"},
+       {l:"Inconnu",v:"unknown"}]));
     if(S.tattoo){
       qs.push(Q("tattooAge","Ancienneté du tatouage","Les encres anciennes contiennent plus fréquemment des composés métalliques.",
         [{l:"Moins de 6 semaines",v:"new",t:"cicatrisation"},{l:"Ancien, cicatrisé",v:"old"},{l:"Inconnue",v:"unknown"}],true));
@@ -2074,7 +2074,7 @@ const U_CONSEILS={
   couple:["Faites entrer le patient <strong>lentement</strong> dans le tunnel : c'est le passage à travers les lignes de champ, pas la position finale, qui provoque l'à-coup de couple sur un élément ferromagnétique.",
     "Si un champ plus faible est disponible (1,5 T plutôt que 3 T), le couple en dépend directement."],
   translation:["Ralentissez la table, surtout à l'approche de l'entrée du tunnel — la force dépend du produit vitesse × gradient local."],
-  dbdt:["Si le protocole le permet, privilégiez des séquences à <strong>gradients moins intenses</strong> (mode de gradient normal, dB/dt plus faible).",
+  dbdt:["Si le protocole le permet, utiliser le mode de gradient le plus bas disponible sur la machine et privilégier des séquences moins exigeantes en gradients que l'EPI (diffusion, IRMf).",
     "Maintenez un contact avec le patient s'il peut communiquer, pour repérer une stimulation (picotement, contraction)."],
   b1:["Mode SAR normal, ou plus bas si le protocole le permet.",
     "Un champ plus faible réduit généralement l'échauffement — <strong>sauf</strong> si la longueur d'onde se rapproche de la longueur du conducteur (effet non monotone).",
